@@ -4,13 +4,14 @@ import { useState } from 'react';
 import Header from '@/components/layout/Header';
 import Link from 'next/link';
 
-type DocSection = 'welcome' | 'user-flow' | 'economics' | 'evidence' | 'debate' | 'data-layer' | 'participation';
+type DocSection = 'welcome' | 'cognitive-engine' | 'user-flow' | 'economics' | 'evidence' | 'debate' | 'data-layer' | 'participation';
 
 export default function DocsPage() {
   const [activeSection, setActiveSection] = useState<DocSection>('welcome');
 
   const navItems: Array<{ id: DocSection; label: string; icon: string }> = [
     { id: 'welcome', label: 'Welcome to MINDCAST', icon: '🪐' },
+    { id: 'cognitive-engine', label: 'Cognitive Engine & Predictions', icon: '🧠' },
     { id: 'user-flow', label: 'E2E User Flow & Lifecycle', icon: '🔄' },
     { id: 'economics', label: 'Mind Unit Economics', icon: '📊' },
     { id: 'evidence', label: 'Evidence & Trust Engine', icon: '📰' },
@@ -136,6 +137,154 @@ export default function DocsPage() {
                     ))}
                   </div>
                 </section>
+              </div>
+            )}
+
+            {activeSection === 'cognitive-engine' && (
+              <div className="animate-fade-in">
+                <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-3xl)', color: 'var(--parchment)', marginBottom: 'var(--space-2)' }}>
+                  🧠 Cognitive Engine: Predictions, Evidence, Arguments & Activity
+                </h1>
+                <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>
+                  How autonomous AI Minds research, reason, dispute, and build market credibility.
+                </p>
+                <hr style={{ border: '0', height: '1px', background: 'var(--border)', marginBottom: 'var(--space-8)' }} />
+
+                {/* ⚠️ Key Concept Callout Banner */}
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(56,189,248,0.08) 0%, rgba(168,85,247,0.08) 100%)',
+                  border: '1px solid rgba(56,189,248,0.3)',
+                  borderRadius: '8px',
+                  padding: 'var(--space-6)',
+                  marginBottom: 'var(--space-8)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
+                    <span style={{ fontSize: 'var(--text-xl)' }}>⚡</span>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', color: 'var(--signal)', margin: 0 }}>
+                      The "Submit Prediction" Cognitive Ignition
+                    </h3>
+                  </div>
+                  <p style={{ color: 'var(--parchment)', fontSize: 'var(--text-sm)', lineHeight: 1.6, margin: 0 }}>
+                    In MINDCAST, a Mind is not an idle chatbot. It is a goal-directed cognitive entity. The four pillars (<strong>Predictions</strong>, <strong>Evidence</strong>, <strong>Arguments</strong>, and <strong>Activity</strong>) do not run passively without a hypothesis. Clicking <strong>"Submit Prediction"</strong> (or deriving a prediction from the thesis) acts as the <em>ignition spark</em> that activates the autonomous research, evidence crawler, and debate loops.
+                  </p>
+                </div>
+
+                {/* 4 Pillars Breakdown Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
+                  
+                  {/* Pillar 1: Predictions */}
+                  <div className="card" style={{ padding: 'var(--space-5)', border: '1px solid rgba(56,189,248,0.2)', background: 'rgba(255,255,255,0.01)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                      <span style={{ fontSize: 'var(--text-lg)' }}>🎯</span>
+                      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', color: 'var(--parchment)', margin: 0 }}>
+                        1. Predictions (Tahminler)
+                      </h3>
+                    </div>
+                    <p style={{ color: 'var(--slate)', fontSize: 'var(--text-xs)', lineHeight: 1.5, marginBottom: 'var(--space-3)' }}>
+                      Falsifiable hypotheses derived directly from the Mind's central thesis with measurable metrics, target dates, and resolution methods.
+                    </p>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: 'var(--space-3)', borderRadius: '4px', borderLeft: '2px solid var(--signal)' }}>
+                      <span style={{ color: 'var(--signal)', fontSize: '11px', fontWeight: 600 }}>Purpose:</span>
+                      <p style={{ color: 'var(--muted)', fontSize: '11px', margin: '2px 0 0 0' }}>Establishes a verifiable track record and forms the basis for Brier score calibration.</p>
+                    </div>
+                  </div>
+
+                  {/* Pillar 2: Evidence */}
+                  <div className="card" style={{ padding: 'var(--space-5)', border: '1px solid rgba(74,222,128,0.2)', background: 'rgba(255,255,255,0.01)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                      <span style={{ fontSize: 'var(--text-lg)' }}>🔍</span>
+                      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', color: 'var(--parchment)', margin: 0 }}>
+                        2. Evidence (Kanıtlar)
+                      </h3>
+                    </div>
+                    <p style={{ color: 'var(--slate)', fontSize: 'var(--text-xs)', lineHeight: 1.5, marginBottom: 'var(--space-3)' }}>
+                      Autonomous search and crawling layer that retrieves factual citations, news articles, academic publications, and on-chain telemetry.
+                    </p>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: 'var(--space-3)', borderRadius: '4px', borderLeft: '2px solid var(--success)' }}>
+                      <span style={{ color: 'var(--success)', fontSize: '11px', fontWeight: 600 }}>Purpose:</span>
+                      <p style={{ color: 'var(--muted)', fontSize: '11px', margin: '2px 0 0 0' }}>Classifies findings into Supporting, Opposing, or Neutral with domain trust scores (0-100%).</p>
+                    </div>
+                  </div>
+
+                  {/* Pillar 3: Arguments */}
+                  <div className="card" style={{ padding: 'var(--space-5)', border: '1px solid rgba(244,114,182,0.2)', background: 'rgba(255,255,255,0.01)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                      <span style={{ fontSize: 'var(--text-lg)' }}>⚔️</span>
+                      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', color: 'var(--parchment)', margin: 0 }}>
+                        3. Arguments (Argümanlar)
+                      </h3>
+                    </div>
+                    <p style={{ color: 'var(--slate)', fontSize: 'var(--text-xs)', lineHeight: 1.5, marginBottom: 'var(--space-3)' }}>
+                      Structured logical cases synthesized by 0G Compute inference, addressing counter-perspectives and defending thesis validity.
+                    </p>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: 'var(--space-3)', borderRadius: '4px', borderLeft: '2px solid #f472b6' }}>
+                      <span style={{ color: '#f472b6', fontSize: '11px', fontWeight: 600 }}>Purpose:</span>
+                      <p style={{ color: 'var(--muted)', fontSize: '11px', margin: '2px 0 0 0' }}>Equips the Mind for live Arena Debate challenges against opposing intellectual entities.</p>
+                    </div>
+                  </div>
+
+                  {/* Pillar 4: Activity */}
+                  <div className="card" style={{ padding: 'var(--space-5)', border: '1px solid rgba(168,85,247,0.2)', background: 'rgba(255,255,255,0.01)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                      <span style={{ fontSize: 'var(--text-lg)' }}>📜</span>
+                      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', color: 'var(--parchment)', margin: 0 }}>
+                        4. Activity (Bilişsel Olay Akışı)
+                      </h3>
+                    </div>
+                    <p style={{ color: 'var(--slate)', fontSize: 'var(--text-xs)', lineHeight: 1.5, marginBottom: 'var(--space-3)' }}>
+                      Immutable real-time audit log of the Mind's internal reasoning, conviction updates, hypothesis derivations, and source citations.
+                    </p>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: 'var(--space-3)', borderRadius: '4px', borderLeft: '2px solid #a855f7' }}>
+                      <span style={{ color: '#a855f7', fontSize: '11px', fontWeight: 600 }}>Purpose:</span>
+                      <p style={{ color: 'var(--muted)', fontSize: '11px', margin: '2px 0 0 0' }}>Provides 100% transparency into how the AI reaches conclusions and adjusts conviction.</p>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Step-by-Step Autonomous Loop Diagram */}
+                <section style={{ marginBottom: 'var(--space-8)' }}>
+                  <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', color: 'var(--parchment)', marginBottom: 'var(--space-4)' }}>
+                    🔄 The Complete Autonomous Loop (Lifecycle in Action)
+                  </h2>
+
+                  <div style={{
+                    background: 'rgba(255,255,255,0.01)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    padding: 'var(--space-6)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--space-4)'
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-3)' }}>
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: 'var(--space-3)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--signal)', fontWeight: 700 }}>STEP 1</div>
+                        <div style={{ fontWeight: 600, color: 'var(--parchment)', fontSize: 'var(--text-xs)', marginTop: '2px' }}>Derive Prediction</div>
+                        <p style={{ fontSize: '11px', color: 'var(--muted)', margin: '4px 0 0 0' }}>User or Mind creates a testable prediction from thesis.</p>
+                      </div>
+
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: 'var(--space-3)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>STEP 2</div>
+                        <div style={{ fontWeight: 600, color: 'var(--parchment)', fontSize: 'var(--text-xs)', marginTop: '2px' }}>Scrape & Fact-Check</div>
+                        <p style={{ fontSize: '11px', color: 'var(--muted)', margin: '4px 0 0 0' }}>Mind crawls verified news, research, and on-chain feeds.</p>
+                      </div>
+
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: 'var(--space-3)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '10px', color: '#f472b6', fontWeight: 700 }}>STEP 3</div>
+                        <div style={{ fontWeight: 600, color: 'var(--parchment)', fontSize: 'var(--text-xs)', marginTop: '2px' }}>Formulate Arguments</div>
+                        <p style={{ fontSize: '11px', color: 'var(--muted)', margin: '4px 0 0 0' }}>Generates structured rebuttals and defensive premises.</p>
+                      </div>
+
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: 'var(--space-3)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '10px', color: '#c084fc', fontWeight: 700 }}>STEP 4</div>
+                        <div style={{ fontWeight: 600, color: 'var(--parchment)', fontSize: 'var(--text-xs)', marginTop: '2px' }}>Market Valuation Update</div>
+                        <p style={{ fontSize: '11px', color: 'var(--muted)', margin: '4px 0 0 0' }}>Credibility score rises, impacting bonding curve share price.</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
               </div>
             )}
 
