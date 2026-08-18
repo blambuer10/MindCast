@@ -17,36 +17,14 @@ export async function GET(request: NextRequest) {
 
   // 1. Check Database
   try {
-    const dbPath = process.env.DATABASE_PATH || '';
-    const fs = require('fs');
-    let writeTestResult = 'Not Run';
-    if (dbPath) {
-      const dir = require('path').dirname(dbPath);
-      try {
-        fs.writeFileSync(require('path').join(dir, '.write-test'), 'test');
-        fs.unlinkSync(require('path').join(dir, '.write-test'));
-        writeTestResult = 'Success';
-      } catch (writeErr: any) {
-        writeTestResult = `Failed: ${writeErr.stack || writeErr.message}`;
-      }
-    }
-
     const db = getDb();
     const result = db.prepare('SELECT 1 as val').get() as { val: number };
     if (result.val === 1) {
       health.services.database = 'healthy';
     }
-    health.databaseDetails = {
-      dbPath,
-      writeTest: writeTestResult
-    };
-  } catch (err: any) {
+  } catch (err) {
     health.status = 'degraded';
     health.services.database = 'unavailable';
-    health.databaseDetails = {
-      dbPath: process.env.DATABASE_PATH || 'default',
-      error: err.stack || err.message || String(err)
-    };
   }
 
   // 2. Check AI / 0G Compute configuration
