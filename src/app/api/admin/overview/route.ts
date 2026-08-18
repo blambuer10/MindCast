@@ -135,7 +135,6 @@ export async function GET(request: NextRequest) {
         u.id, 
         u.wallet_address, 
         u.name, 
-        u.reputation, 
         u.created_at,
         (SELECT COUNT(*) FROM ideas WHERE creator_id = u.id) as ideas_count,
         (SELECT COUNT(*) FROM mind_founders WHERE creator_id = u.id) as investments_count,
@@ -208,7 +207,7 @@ export async function GET(request: NextRequest) {
     `).all() as any[];
 
     const recentAuditLogs = db.prepare(`
-      SELECT id, actor_id, role, dataset_id, purpose, action, timestamp, result
+      SELECT actor_id, role, dataset_id, purpose, action, timestamp, result
       FROM data_access_audit_log
       ORDER BY timestamp DESC
       LIMIT 50
