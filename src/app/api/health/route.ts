@@ -17,14 +17,15 @@ export async function GET(request: NextRequest) {
   try {
     const dbPath = process.env.DATABASE_PATH || '';
     const fs = require('fs');
+    let writeTestResult = 'Not Run';
     if (dbPath) {
       const dir = require('path').dirname(dbPath);
       try {
         fs.writeFileSync(require('path').join(dir, '.write-test'), 'test');
         fs.unlinkSync(require('path').join(dir, '.write-test'));
-        console.log(`[Health Check] Write test successful for directory: ${dir}`);
+        writeTestResult = 'Success';
       } catch (writeErr: any) {
-        console.error(`[Health Check] Write permission test FAILED for directory ${dir}:`, writeErr.stack || writeErr.message);
+        writeTestResult = `Failed: ${writeErr.stack || writeErr.message}`;
       }
     }
 
@@ -33,10 +34,17 @@ export async function GET(request: NextRequest) {
     if (result.val === 1) {
       health.services.database = 'healthy';
     }
+    health.databaseDetails = {
+      dbPath,
+      writeTest: writeTestResult
+    };
   } catch (err: any) {
-    console.error('[Health Check] Database verification failed. Full stack:', err.stack || err.message || err);
     health.status = 'degraded';
     health.services.database = 'unavailable';
+    health.databaseDetails = {
+      dbPath: process.env.DATABASE_PATH || 'default',
+      error: err.stack || err.message || String(err)
+    };
   }
 
   // 2. Check AI / 0G Compute configuration
