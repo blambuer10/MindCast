@@ -50,8 +50,8 @@ interface OverviewData {
   users: Array<{
     id: string;
     wallet_address: string;
-    name: string;
-    reputation: number;
+    name?: string;
+    reputation?: number;
     created_at: string;
     ideas_count: number;
     investments_count: number;

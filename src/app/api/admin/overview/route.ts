@@ -89,7 +89,6 @@ export async function GET(request: NextRequest) {
         SELECT 
           u.id, 
           u.wallet_address, 
-          u.name, 
           u.created_at,
           (SELECT COUNT(*) FROM ideas WHERE creator_id = u.id) as ideas_count,
           (SELECT COUNT(*) FROM mind_founders WHERE creator_id = u.id) as investments_count,
@@ -142,9 +141,6 @@ export async function GET(request: NextRequest) {
           a.prediction_accuracy,
           a.lifecycle_status,
           a.estimated_value,
-          ma.token_address,
-          ma.market_cap,
-          ma.share_price,
           ma.creator_allocation,
           ma.community_allocation,
           (SELECT COUNT(*) FROM evidence WHERE agent_id = a.id) as evidence_count,
