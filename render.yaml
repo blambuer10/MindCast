@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: mindcast-app
+    env: node
+    buildCommand: npm run build
+    startCommand: npm run start
+    plan: starter # Starter plan allows persistent disk attachment
+    envVars:
+      - key: NODE_VERSION
+        value: 20.20.2
+      - key: DATABASE_PATH
+        value: /data/mindcast.db
+      - key: AI_PROVIDER
+        value: zerog
+      - key: NEXT_PUBLIC_CHAIN_ID
+        value: "84532"
+      - key: NEXT_PUBLIC_CHAIN_NAME
+        value: "Base Sepolia"
+      - key: NEXT_PUBLIC_USDC_CONTRACT_ADDRESS
+        value: "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+      - key: PAYMENT_AMOUNT
+        value: "1"
+      - key: PAYMENT_RECIPIENT_ADDRESS
+        value: "0xB284ED722cCC17B0BE3737A1a5cA8b991fA81F3a"
+      - key: ZEROG_API_URL
+        value: "https://router-api.0g.ai/v1"
+      - key: ZEROG_MODEL
+        value: "0gm-1.0-35b-a3b"
+      - key: TEST_PRIVATE_KEY
+        sync: false
+      - key: 0G_API_KEY
+        sync: false
+    disk:
+      name: data-volume
+      mountPath: /data
+      sizeGB: 1

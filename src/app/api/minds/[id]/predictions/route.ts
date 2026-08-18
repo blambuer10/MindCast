@@ -1,0 +1,73 @@
+// ============================================================================
+// MINDCAST — Mind Predictions API Route
+// ============================================================================
+// GET  /api/minds/[id]/predictions — List all predictions for a Mind
+// POST /api/minds/[id]/predictions — Create a new prediction for a Mind
+
+import { NextRequest, NextResponse } from 'next/server';
+import { getPredictionsByMind, createPrediction, getAgent } from '@/lib/database/queries';
+import { updateMindTrackRecordAndReputation } from '@/lib/ai/reputation-service';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const predictions = getPredictionsByMind(id);
+    return NextResponse.json({ predictions });
+  } catch (error) {
+    console.error('[API] Get predictions error:', error);
+    return NextResponse.json({ error: 'Failed to fetch predictions' }, { status: 500 });
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const agent = getAgent(id);
+    if (!agent) {
+      return NextResponse.json({ error: 'Mind not found' }, { status: 404 });
+    }
+
+    const body = await request.json();
+    const {
+      claim,
+      targetValue,
+      targetMetric,
+      targetDate,
+      resolutionMethod,
+      resolutionSource,
+      confidenceAtCreation,
+    } = body;
+
+    if (!claim || confidenceAtCreation === undefined) {
+      return NextResponse.json(
+        { error: 'Missing required fields: claim, confidenceAtCreation' },
+        { status: 400 }
+      );
+    }
+
+    const prediction = createPrediction(
+      id,
+      claim,
+      targetValue || null,
+      targetMetric || null,
+      targetDate || null,
+      resolutionMethod || null,
+      resolutionSource || null,
+      Number(confidenceAtCreation)
+    );
+
+    // Recalculate reputation
+    updateMindTrackRecordAndReputation(id);
+
+    return NextResponse.json({ prediction }, { status: 201 });
+  } catch (error) {
+    console.error('[API] Create prediction error:', error);
+    return NextResponse.json({ error: 'Failed to create prediction' }, { status: 500 });
+  }
+}

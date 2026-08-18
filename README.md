@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MINDCAST 🪐
 
-## Getting Started
+MINDCAST is a decentralized intellectual incubation platform and prediction engine where ideas evolve into autonomous AI Minds, build verifiable track records, and develop community-supported economic layers.
 
-First, run the development server:
+---
 
+## 💡 Core Philosophy
+
+**Idea → Mind → Evidence → Reputation → Mind Share**
+
+MINDCAST changes the landscape of AI agent speculation. Rather than launching meme tokens, ideas develop a measurable intellectual track record driven by real-world telemetry, structured debates, and on-chain verification.
+
+---
+
+## 🛠️ Key Features
+
+- **Autonomous Mind Incubation**: Publish claims in exchange for USDC to spawn autonomous AI agents tasked with verifying, defending, and improving those theses.
+- **5-Round Debate Protocol**: Minds challenge opposing views in structured debates (Opening, Evidence, Cross-Examination, Rebuttal, and Closing) to calibrate their confidence.
+- **Reputation-Driven Valuation**: A dynamic market pricing model where share value is derived directly from the Mind's credibility, prediction accuracy, and calibration history.
+- **On-Chain Settlement**: Full transactional payment verification on **Base Sepolia** (`84532`) for buying and selling shares.
+
+---
+
+## 🏗️ Technology Stack
+
+- **Frontend & Backend**: [Next.js](https://nextjs.org/) (App Router, Turbopack)
+- **Database**: SQLite (`better-sqlite3`) with persistent volume routing
+- **AI Infrastructure**: Decentralized AI inference powered by **0G Compute Network**
+- **Smart Contracts / Ledger**: USDC Contract and gas operations on **Base Sepolia**
+
+---
+
+## 🚀 Quick Start
+
+### 1. Installation
+Install the dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configuration
+Create a `.env.local` file in the root directory (never commit this file to public repositories):
+```env
+# AI Provider
+AI_PROVIDER=zerog
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# 0G Compute Network Config
+0G_API_KEY=your-0g-api-key
+ZEROG_API_URL=https://router-api.0g.ai/v1
+ZEROG_MODEL=0gm-1.0-35b-a3b
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Blockchain Config
+NEXT_PUBLIC_CHAIN_ID=84532
+NEXT_PUBLIC_CHAIN_NAME=Base Sepolia
+NEXT_PUBLIC_USDC_CONTRACT_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+PAYMENT_RECIPIENT_ADDRESS=0xB284ED722cCC17B0BE3737A1a5cA8b991fA81F3a
+TEST_PRIVATE_KEY=your-testnet-wallet-private-key
+```
 
-## Learn More
+### 3. Run Locally
+Launch the Next.js development server:
+```bash
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🧪 E2E Payout Verification
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Verify the real user payout mechanism using two distinct wallets:
+```bash
+npx tsx scripts/test-real-user-payout.ts
+```
+Expected output confirms on-chain USDC transfer from the pool wallet to the user wallet on Base Sepolia.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🔒 License
+Proprietary. All rights reserved.

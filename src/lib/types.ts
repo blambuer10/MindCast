@@ -44,6 +44,17 @@ export enum AgentEventType {
   FOLLOWER_MILESTONE = 'FOLLOWER_MILESTONE',
   CREDIBILITY_CHANGED = 'CREDIBILITY_CHANGED',
   EVIDENCE_INVALIDATED = 'EVIDENCE_INVALIDATED',
+  MIND_SLEEPING = 'MIND_SLEEPING',
+  MIND_AWAKENED = 'MIND_AWAKENED',
+  PREDICTION_CREATED = 'PREDICTION_CREATED',
+  PREDICTION_RESOLVED = 'PREDICTION_RESOLVED',
+  PREDICTION_CORRECT = 'PREDICTION_CORRECT',
+  PREDICTION_INCORRECT = 'PREDICTION_INCORRECT',
+  LIFECYCLE_CHANGED = 'LIFECYCLE_CHANGED',
+  MIND_BECAME_EMERGING = 'MIND_BECAME_EMERGING',
+  MIND_BECAME_PROVEN = 'MIND_BECAME_PROVEN',
+  MIND_BECAME_MARKET_READY = 'MIND_BECAME_MARKET_READY',
+  VALUATION_UPDATED = 'VALUATION_UPDATED',
 }
 
 export enum DebateRound {
@@ -79,6 +90,14 @@ export interface Agent {
   confidence: number;       // 0-100 — current belief strength
   credibility: number;      // 0-100 — historical reliability
   systemPrompt: string;
+  computeBudget: number;
+  computeSpent: number;
+  computeRemaining: number;
+  lifecycleStatus: MindLifecycleStatus;
+  predictionAccuracy: number;
+  calibrationScore: number;
+  estimatedValue: number;
+  marketStatus: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -94,17 +113,31 @@ export interface AgentEvent {
   createdAt: string;
 }
 
+export type EvidenceType = 'NEWS' | 'RESEARCH' | 'DATA' | 'OFFICIAL' | 'EXPERT' | 'MARKET' | 'SOCIAL' | 'OPINION';
+
 export interface Evidence {
   id: string;
   agentId: string;
-  source: string;
-  title: string;
-  url: string;
-  snippet: string;
+  claim: string;
+  direction: EvidenceStance;
+  sourceUrl: string;
+  sourceName: string;
+  sourceType: EvidenceType;
   publishedAt: string | null;
-  retrievedAt: string;
-  relevance: number;        // 0-1
-  stance: EvidenceStance;
+  discoveredAt: string;
+  reliabilityScore: number;  // 0-100
+  relevanceScore: number;    // 0-100
+  strengthScore: number;      // 0-100
+  confidenceImpact: number;  // e.g. +5 or -4
+  status: string;            // 'NEW' | 'VERIFIED' | 'CONTESTED' etc
+  
+  // Backward compatibility compatibility layer
+  source?: string;
+  title?: string;
+  url?: string;
+  snippet?: string;
+  relevance?: number;
+  stance?: EvidenceStance;
 }
 
 export interface Argument {
@@ -178,6 +211,7 @@ export interface MindState {
   belief: MindBelief;
   evidence: Evidence[];
   counterEvidence: Evidence[];
+  allEvidence?: Evidence[];
   arguments: Argument[];
   counterArguments: Argument[];
   memory: MindMemory;
@@ -284,6 +318,12 @@ export interface AIEvidenceEvaluation {
   stance: EvidenceStance;
   impact: number;
   reasoning: string;
+  claim?: string;
+  sourceType?: EvidenceType;
+  reliabilityScore?: number;
+  relevanceScore?: number;
+  strengthScore?: number;
+  confidenceImpact?: number;
 }
 
 export interface AIConfidenceUpdate {
@@ -309,6 +349,9 @@ export type AnalyticsEvent =
   | 'idea_followed'
   | 'debate_started'
   | 'debate_completed'
+  | 'challenge_payment_confirmed'
+  | 'market_shares_bought'
+  | 'market_shares_sold'
   | 'return_visit';
 
 // --- Config ---
@@ -343,4 +386,244 @@ export function generateMindId(): MindId {
 export function shortenAddress(address: string): string {
   if (!address || address.length < 10) return address;
   return `${address.slice(0, 4)}...${address.slice(-3)}`;
+}
+
+// --- Mind Economy & Reputation Types ---
+
+export type MindLifecycleStatus = 'INCUBATING' | 'EMERGING' | 'PROVEN' | 'MARKET_READY' | 'MARKET_ACTIVE' | 'ARCHIVED';
+
+export type PredictionStatus = 'OPEN' | 'RESOLVED_TRUE' | 'RESOLVED_FALSE' | 'PARTIALLY_TRUE' | 'INVALIDATED' | 'CANCELLED';
+
+export interface Prediction {
+  id: string;
+  mindId: string;
+  claim: string;
+  targetValue: string | null;
+  targetMetric: string | null;
+  targetDate: string | null;
+  resolutionMethod: string | null;
+  resolutionSource: string | null;
+  status: PredictionStatus;
+  confidenceAtCreation: number;
+  confidenceAtResolution: number | null;
+  outcome: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export interface DebateOutcome {
+  debateId: string;
+  mindId: string;
+  argumentScore: number;
+  evidenceScore: number;
+  rebuttalScore: number;
+  intellectualHonestyScore: number;
+  confidenceBefore: number;
+  confidenceAfter: number;
+  positionChanged: boolean;
+  createdAt: string;
+}
+
+export interface MindAsset {
+  id: string;
+  mindId: string;
+  assetType: 'MIND_SHARE';
+  totalSupply: number;
+  creatorAllocation: number;
+  communityAllocation: number;
+  protocolAllocation: number;
+  liquidityAllocation: number;
+  marketStatus: string;
+  createdAt: string;
+}
+
+export interface MindFounder {
+  creatorId: string;
+  mindId: string;
+  allocationPercentage: number;
+  allocationStatus: string;
+  createdAt: string;
+}
+
+export interface MindReputationEvent {
+  id: string;
+  mindId: string;
+  eventType: string;
+  scoreChange: number;
+  description: string;
+  createdAt: string;
+}
+
+export interface MindValuationSnapshot {
+  id: string;
+  mindId: string;
+  estimatedValue: number;
+  createdAt: string;
+}
+
+export interface ProtocolAsset {
+  id: string;
+  assetType: 'PROTOCOL_TOKEN';
+  symbol: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface MindComputeUsage {
+  id: string;
+  mindId: string;
+  taskType: string;
+  provider: string;
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  estimatedCost: number;
+  createdAt: string;
+}
+
+// --- Data Intelligence Layer Types ---
+
+export type DataClassification = 'PUBLIC' | 'INTERNAL' | 'PERSONAL' | 'PSEUDONYMOUS' | 'SENSITIVE' | 'RESTRICTED';
+
+export type ConsentType = 'ANALYTICS' | 'PERSONALIZATION' | 'RESEARCH' | 'COMMERCIAL_DATA_USE';
+
+export interface DataEvent {
+  id: string;
+  eventId: string;
+  eventType: string;
+  actorType: 'USER' | 'AI' | 'SYSTEM';
+  actorId: string | null;
+  anonymousActorId: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  sessionId: string | null;
+  requestId: string | null;
+  metadata: Record<string, any>;
+  source: string;
+  version: string;
+  schemaVersion: string;
+  createdAt: string;
+}
+
+export interface MindThesisVersion {
+  id: string;
+  mindId: string;
+  version: number;
+  thesis: string;
+  reason: string | null;
+  generatedBy: 'USER' | 'AI';
+  confidence: number;
+  createdAt: string;
+}
+
+export interface MindBeliefSnapshot {
+  id: string;
+  mindId: string;
+  confidence: number;
+  credibility: number;
+  evidenceCount: number;
+  counterEvidenceCount: number;
+  predictionAccuracy: number;
+  followers: number;
+  debateCount: number;
+  timestamp: string;
+}
+
+export interface SourceIntelligence {
+  domain: string;
+  publisher: string | null;
+  sourceType: string;
+  citationCount: number;
+  evidenceCount: number;
+  supportingCount: number;
+  opposingCount: number;
+  averageReliability: number;
+  averageRelevance: number;
+  updatedAt: string;
+}
+
+export interface Topic {
+  id: string;
+  name: string;
+  parentId: string | null;
+  createdAt: string;
+}
+
+export interface MindTopic {
+  mindId: string;
+  topicId: string;
+  relevanceScore: number;
+  createdAt: string;
+}
+
+export interface MindRelationship {
+  id: string;
+  sourceMindId: string;
+  targetMindId: string;
+  relationshipType: 'AGREES' | 'DISAGREES' | 'CITES' | 'RESPONDS_TO' | 'INFLUENCES' | 'SHARES_EVIDENCE' | 'COMPETES_WITH';
+  confidenceImpact: number;
+  createdAt: string;
+}
+
+export interface SessionEvent {
+  sessionId: string;
+  anonymousUserId: string;
+  userId: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  referrer: string | null;
+  landingPage: string | null;
+  deviceCategory: string | null;
+  browserCategory: string | null;
+  countryRegion: string | null;
+  eventsCount: number;
+}
+
+export interface ConsentRecord {
+  id: string;
+  userId: string;
+  consentType: ConsentType;
+  version: string;
+  granted: boolean;
+  timestamp: string;
+  source: string;
+}
+
+export interface DatasetDefinition {
+  datasetId: string;
+  name: string;
+  version: string;
+  description: string | null;
+  sourceTables: string[];
+  transformationVersion: string;
+  createdAt: string;
+}
+
+export interface DataQualityRun {
+  id: string;
+  datasetId: string;
+  qualityScore: number;
+  metrics: Record<string, any>;
+  timestamp: string;
+}
+
+export interface EarlySignal {
+  id: string;
+  topic: string;
+  strength: number;
+  evidenceVelocity: number;
+  convergingMindsCount: number;
+  details: Record<string, any>;
+  detectedAt: string;
+}
+
+export interface DataAccessAuditLog {
+  id: string;
+  actorId: string | null;
+  role: string;
+  datasetId: string;
+  purpose: string;
+  action: string;
+  timestamp: string;
+  result: string;
 }
