@@ -15,13 +15,26 @@ export async function GET(request: NextRequest) {
 
   // 1. Check Database
   try {
+    const dbPath = process.env.DATABASE_PATH || '';
+    const fs = require('fs');
+    if (dbPath) {
+      const dir = require('path').dirname(dbPath);
+      try {
+        fs.writeFileSync(require('path').join(dir, '.write-test'), 'test');
+        fs.unlinkSync(require('path').join(dir, '.write-test'));
+        console.log(`[Health Check] Write test successful for directory: ${dir}`);
+      } catch (writeErr: any) {
+        console.error(`[Health Check] Write permission test FAILED for directory ${dir}:`, writeErr.stack || writeErr.message);
+      }
+    }
+
     const db = getDb();
     const result = db.prepare('SELECT 1 as val').get() as { val: number };
     if (result.val === 1) {
       health.services.database = 'healthy';
     }
   } catch (err: any) {
-    console.error('[Health Check] Database verification failed:', err.message || err);
+    console.error('[Health Check] Database verification failed. Full stack:', err.stack || err.message || err);
     health.status = 'degraded';
     health.services.database = 'unavailable';
   }
