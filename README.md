@@ -44,18 +44,6 @@ Create a `.env.local` file in the root directory (never commit this file to publ
 # AI Provider
 AI_PROVIDER=zerog
 
-# 0G Compute Network Config
-0G_API_KEY=your-0g-api-key
-ZEROG_API_URL=https://router-api.0g.ai/v1
-ZEROG_MODEL=0gm-1.0-35b-a3b
-
-# Blockchain Config
-NEXT_PUBLIC_CHAIN_ID=84532
-NEXT_PUBLIC_CHAIN_NAME=Base Sepolia
-NEXT_PUBLIC_USDC_CONTRACT_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
-PAYMENT_RECIPIENT_ADDRESS=0xB284ED722cCC17B0BE3737A1a5cA8b991fA81F3a
-TEST_PRIVATE_KEY=your-testnet-wallet-private-key
-```
 
 ### 3. Run Locally
 Launch the Next.js development server:
