@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/database/connection';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const health: Record<string, any> = {
     status: 'healthy',
