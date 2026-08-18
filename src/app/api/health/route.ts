@@ -20,7 +20,8 @@ export async function GET(request: NextRequest) {
     if (result.val === 1) {
       health.services.database = 'healthy';
     }
-  } catch (err) {
+  } catch (err: any) {
+    console.error('[Health Check] Database verification failed:', err.message || err);
     health.status = 'degraded';
     health.services.database = 'unavailable';
   }
