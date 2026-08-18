@@ -49,6 +49,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const activeProviderRef = useRef<any>(null);
   const userDisconnectedRef = useRef(false);
 
+  // Auto-sync connected wallet to backend database
+  useEffect(() => {
+    if (address) {
+      fetch('/api/users/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: address }),
+      }).catch(err => console.error('[Wallet] Failed to sync user:', err));
+    }
+  }, [address]);
+
   // EIP-6963 Multi-wallet discovery listener
   useEffect(() => {
     if (typeof window === 'undefined') return;
