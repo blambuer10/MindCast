@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS evidence (
 );
 
 CREATE INDEX IF NOT EXISTS idx_evidence_agent ON evidence(agent_id);
-CREATE INDEX IF NOT EXISTS idx_evidence_stance ON evidence(stance);
+CREATE INDEX IF NOT EXISTS idx_evidence_stance ON evidence(direction);
 
 -- ─── Arguments ───────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS arguments (
