@@ -289,7 +289,7 @@ export interface IdeaWithMind extends Idea {
 }
 
 export interface FeedFilters {
-  tab: 'trending' | 'recent' | 'debating';
+  tab: 'trending' | 'recent' | 'debating' | 'top-mcap' | 'dex';
   page: number;
   limit: number;
 }

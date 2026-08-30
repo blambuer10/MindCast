@@ -44,10 +44,19 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [showSelector, setShowSelector] = useState(false);
   const [providers, setProviders] = useState<EIP6963ProviderDetail[]>([]);
+  const [chainConfig, setChainConfig] = useState<any>(null);
 
   const announcedProvidersRef = useRef<EIP6963ProviderDetail[]>([]);
   const activeProviderRef = useRef<any>(null);
   const userDisconnectedRef = useRef(false);
+
+  // Fetch dynamic chain configuration from manifest-derived API
+  useEffect(() => {
+    fetch('/api/web/chains/config')
+      .then(res => res.json())
+      .then(cfg => setChainConfig(cfg))
+      .catch(err => console.warn('[Wallet] Config fetch notice:', err));
+  }, []);
 
   // Auto-sync connected wallet to backend database
   useEffect(() => {
@@ -179,16 +188,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, []);
 
-  const getUSDCBalance = useCallback(async (userAddress: string, provider: BrowserProvider) => {
+  const getUSDCBalance = useCallback(async (userAddress: string, provider: BrowserProvider, currentChainId?: string) => {
     try {
-      const usdcAddress = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+      const activeChain = currentChainId || chainId || '84532';
+      let usdcAddress = chainConfig?.chains?.[activeChain]?.tokens?.USDC;
+      if (!usdcAddress) {
+        usdcAddress = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || (activeChain === '8453' ? '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' : '0x036CbD53842c5426634e7929541eC2318f3dCF7e');
+      }
       const contract = new Contract(usdcAddress, ['function balanceOf(address account) view returns (uint256)'], provider);
       const bal = await contract.balanceOf(userAddress);
       setBalance(formatUnits(bal, 6));
     } catch {
       setBalance('0.0');
     }
-  }, []);
+  }, [chainConfig, chainId]);
 
   const handleAccountsChanged = useCallback(async (accounts: string[]) => {
     if (!accounts || accounts.length === 0) {
@@ -210,11 +223,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const handleChainChanged = useCallback((hexChainId: string) => {
     try {
-      setChainId(parseInt(hexChainId, 16).toString());
+      const newChainId = parseInt(hexChainId, 16).toString();
+      setChainId(newChainId);
       const eth = activeProviderRef.current || getEthereumProvider();
       if (address && eth) {
         const provider = new BrowserProvider(eth, 'any');
-        getUSDCBalance(address, provider);
+        getUSDCBalance(address, provider, newChainId);
       }
     } catch {
       // ignore
@@ -370,19 +384,22 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const sendUsdc = useCallback(async (recipient: string, amount: string): Promise<string> => {
     const eth = activeProviderRef.current || getEthereumProvider();
-    if (!eth || !address) throw new Error('Wallet not connected');
+    if (!eth || !address || !chainId) throw new Error('Wallet not connected');
 
     const provider = new BrowserProvider(eth, 'any');
     const signer = await provider.getSigner();
 
-    const usdcAddress = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+    let usdcAddress = chainConfig?.chains?.[chainId]?.tokens?.USDC;
+    if (!usdcAddress) {
+      usdcAddress = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || (chainId === '8453' ? '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' : '0x036CbD53842c5426634e7929541eC2318f3dCF7e');
+    }
     const contract = new Contract(usdcAddress, USDC_ABI, signer);
 
     const parsedAmount = parseUnits(amount, 6);
     const tx = await contract.transfer(recipient, parsedAmount);
     
     return tx.hash;
-  }, [address, getEthereumProvider]);
+  }, [address, getEthereumProvider, chainId, chainConfig]);
 
   // Autoconnect logic
   useEffect(() => {

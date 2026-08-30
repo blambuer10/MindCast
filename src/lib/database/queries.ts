@@ -102,6 +102,17 @@ export function getIdeasFeed(filters: FeedFilters): IdeaWithMind[] {
     orderBy = `(
       SELECT COUNT(*) FROM debates d WHERE (d.idea_a = i.id OR d.idea_b = i.id) AND d.status = 'ACTIVE'
     ) DESC`;
+  } else if (filters.tab === 'top-mcap') {
+    orderBy = 'COALESCE(a.estimated_value, 0) DESC, a.credibility DESC';
+  } else if (filters.tab === 'dex') {
+    orderBy = `(
+      CASE 
+        WHEN a.lifecycle_status = 'MARKET_ACTIVE' THEN 4
+        WHEN a.lifecycle_status = 'PROVEN' THEN 3
+        WHEN a.lifecycle_status = 'EMERGING' THEN 2
+        ELSE 1
+      END
+    ) DESC, COALESCE(a.estimated_value, 0) DESC`;
   }
 
   const rows = db.prepare(`

@@ -28,19 +28,92 @@ export default function Header() {
       </Link>
 
       <nav className="nav" aria-label="Main navigation">
+        <Link href="/">Noosphere</Link>
         <Link href="/explore">Explore</Link>
+        <Link href="/#arena">Debates</Link>
         <Link href="/docs">Docs</Link>
-        <Link href="/#how">How it works</Link>
-        <Link href="/#arena">Debate arena</Link>
-        <Link href="/#evidence">Evidence</Link>
-        <Link href="/#faq">FAQ</Link>
-        <Link href="/#cast" className="nav-cta" style={{ marginRight: '16px' }}>Cast an idea ↗</Link>
+        {isConnected && address && (
+          <Link href={`/profile/${address}`}>Profile</Link>
+        )}
+        <a
+          href="/#cast"
+          className="nav-cta"
+          style={{ marginRight: '16px', cursor: 'pointer' }}
+          onClick={(e) => {
+            if (typeof window !== 'undefined' && window.location.pathname === '/') {
+              e.preventDefault();
+              const castSection = document.getElementById('cast') || document.getElementById('thesis');
+              if (castSection) {
+                castSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => {
+                  const textarea = document.getElementById('thesis') as HTMLTextAreaElement | null;
+                  if (textarea) {
+                    textarea.focus();
+                  }
+                }, 400);
+              }
+            }
+          }}
+        >
+          Cast an idea ↗
+        </a>
         
         {isConnected && address ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>
-              {formatAddress(address)}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Link
+              href={`/profile/${address}`}
+              id="header-profile-badge"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                textDecoration: 'none',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                cursor: 'pointer',
+                transition: 'background 0.2s, border-color 0.2s',
+              }}
+              onClick={(e) => {
+                if (typeof window !== 'undefined') {
+                  // Direct navigation fallback ensures instant jump
+                  window.location.href = `/profile/${address}`;
+                }
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+              }}
+            >
+              {/* Mini Avatar */}
+              <div style={{
+                width: '22px',
+                height: '22px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, hsl(240, 60%, 45%), hsl(300, 50%, 35%))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '9px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-mono)',
+                color: 'rgba(255,255,255,0.9)',
+              }}>
+                {address.slice(2, 4).toUpperCase()}
+              </div>
+              <span style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--ink)',
+              }}>
+                {formatAddress(address)}
+              </span>
+            </Link>
             <button
               className="primary-button"
               style={{ minHeight: '34px', padding: '0 12px', fontSize: '12px' }}

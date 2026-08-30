@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import { useWallet } from '@/hooks/useWallet';
+import type { IdeaWithMind } from '@/lib/types';
 
 declare global {
   interface Window {
@@ -22,17 +23,44 @@ export default function LandingPage() {
   const [paymentRecipient, setPaymentRecipient] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('1');
   const [errorMessage, setErrorMessage] = useState('');
+  const [lastTxHash, setLastTxHash] = useState<string>('');
+
+  // Live Noosphere Stream states
+  const [streamTab, setStreamTab] = useState<'recent' | 'top-mcap' | 'dex'>('recent');
+  const [streamMinds, setStreamMinds] = useState<IdeaWithMind[]>([]);
+  const [streamLoading, setStreamLoading] = useState(true);
 
   const { isConnected, address, connect, sendUsdc, switchChain, chainId, error: walletError, isConnecting } = useWallet();
 
   const charCount = idea.length;
   const isValid = idea.trim().length > 0 && charCount <= MAX_CHARS;
 
+  // Fetch live stream minds
+  const fetchStreamMinds = useCallback(async (tab: 'recent' | 'top-mcap' | 'dex') => {
+    setStreamLoading(true);
+    try {
+      const res = await fetch(`/api/ideas?tab=${tab}&limit=6`);
+      if (res.ok) {
+        const data = await res.json();
+        setStreamMinds(data.ideas || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch stream minds:', err);
+    } finally {
+      setStreamLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStreamMinds(streamTab);
+  }, [streamTab, fetchStreamMinds]);
+
   const handleSetFree = useCallback(async () => {
     if (!isConnected || !address || !isValid || isSubmitting) return;
 
     setIsSubmitting(true);
     setErrorMessage('');
+    setLastTxHash('');
 
     try {
       const targetChainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '8453');
@@ -65,7 +93,9 @@ export default function LandingPage() {
       setPaymentState('paying');
 
     } catch (err: any) {
-      setErrorMessage(err.message || 'Something went wrong');
+      console.error('Prepare idea error:', err);
+      setErrorMessage(err.message || 'Failed to prepare thesis for awakening.');
+    } finally {
       setIsSubmitting(false);
     }
   }, [idea, isValid, isSubmitting, isConnected, address, switchChain, chainId]);
@@ -77,25 +107,54 @@ export default function LandingPage() {
     setErrorMessage('');
 
     try {
-      const txHash = await sendUsdc(paymentRecipient, paymentAmount);
-
-      const verifyRes = await fetch('/api/payments/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ideaId: currentIdeaId,
-          txHash,
-          chain: 'base',
-          walletAddress: address,
-        }),
-      });
-
-      if (!verifyRes.ok) {
-        const err = await verifyRes.json();
-        throw new Error(err.error || 'Payment verification failed.');
+      // If we already have a confirmed/broadcasted txHash from previous attempt, don't charge again!
+      let txHash = lastTxHash;
+      if (!txHash) {
+        txHash = await sendUsdc(paymentRecipient, paymentAmount);
+        setLastTxHash(txHash);
       }
 
-      setPaymentState('alive');
+      // Automatic retry loop on client to give Base blocks time to propagate to public RPCs
+      let verified = false;
+      let lastErrText = '';
+      const maxRetries = 5;
+
+      for (let i = 1; i <= maxRetries; i++) {
+        try {
+          const verifyRes = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ideaId: currentIdeaId,
+              txHash,
+              chain: 'base',
+              walletAddress: address,
+            }),
+          });
+
+          if (verifyRes.ok) {
+            verified = true;
+            setPaymentState('alive');
+            // Refresh live stream to show newly birthed mind!
+            fetchStreamMinds(streamTab);
+            return;
+          } else {
+            const err = await verifyRes.json();
+            lastErrText = err.error || 'Payment verification failed.';
+          }
+        } catch (e: any) {
+          lastErrText = e.message;
+        }
+
+        if (i < maxRetries) {
+          // Wait 2.0 seconds between polling attempts
+          await new Promise(res => setTimeout(res, 2000));
+        }
+      }
+
+      if (!verified) {
+        throw new Error(lastErrText || 'Transaction is still confirming on Base. Please click "Try Again" in 5 seconds to re-check.');
+      }
 
     } catch (err: any) {
       console.error('Payment flow error:', err);
@@ -491,60 +550,224 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* Mind Gallery */}
-          <section>
-            <div className="gallery-intro">
+          {/* Live Noosphere Stream & Market Ticker Section */}
+          <section id="gallery" style={{ marginTop: 'var(--space-12)' }}>
+            <div className="gallery-intro" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
               <div>
-                <div className="eyebrow">MIND GALLERY</div>
-                <h2>A field of living theses.</h2>
+                <div className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--signal)', boxShadow: '0 0 8px var(--signal)' }}></span>
+                  LIVE NOOSPHERE STREAM &amp; MARKET CAP
+                </div>
+                <h2>Living Intellectual Assets</h2>
+                <p style={{ color: 'var(--slate)', margin: '4px 0 0 0', fontSize: 'var(--text-sm)' }}>
+                  Real-time feed of newly born theses, highest market cap minds, and DEX-graduated assets.
+                </p>
               </div>
 
-              <p>
-                Explore Minds by thesis, stance, confidence, and recent activity.
-              </p>
+              {/* Live Stream Filter Tabs */}
+              <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <button
+                  type="button"
+                  onClick={() => setStreamTab('recent')}
+                  style={{
+                    background: streamTab === 'recent' ? 'var(--violet)' : 'transparent',
+                    color: streamTab === 'recent' ? '#fff' : 'var(--slate)',
+                    border: 0,
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  ⚡ Son Zihinler (Recent)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStreamTab('top-mcap')}
+                  style={{
+                    background: streamTab === 'top-mcap' ? 'var(--violet)' : 'transparent',
+                    color: streamTab === 'top-mcap' ? '#fff' : 'var(--slate)',
+                    border: 0,
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  💎 En Yüksek MCAP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStreamTab('dex')}
+                  style={{
+                    background: streamTab === 'dex' ? 'var(--violet)' : 'transparent',
+                    color: streamTab === 'dex' ? '#fff' : 'var(--slate)',
+                    border: 0,
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  🚀 DEX &amp; Mezunlar
+                </button>
+              </div>
             </div>
 
-            <div className="constellation">
-              <article className="mind-node">
-                <small>Mind #001 / open source momentum</small>
-                <p>Open source AI will outpace closed models.</p>
+            {/* Stream Grid */}
+            {streamLoading ? (
+              <div style={{ padding: '48px', textAlign: 'center', color: 'var(--muted)' }}>
+                <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
+                Noosphere verileri çekiliyor...
+              </div>
+            ) : streamMinds.length > 0 ? (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: 'var(--space-4)',
+                marginTop: 'var(--space-6)',
+              }}>
+                {streamMinds.map((item) => {
+                  const mcap = item.agent?.estimatedValue ? `$${item.agent.estimatedValue.toLocaleString()}` : '$2,500';
+                  const status = item.agent?.lifecycleStatus || 'INCUBATING';
+                  const isDex = status === 'MARKET_ACTIVE' || status === 'PROVEN' || status === 'EMERGING';
 
-                <footer>
-                  <span>72% belief</span>
-                  <span>listening</span>
-                </footer>
-              </article>
+                  return (
+                    <article
+                      key={item.id}
+                      className="card"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        padding: 'var(--space-5)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '10px',
+                        background: 'rgba(255,255,255,0.015)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        transition: 'transform 0.2s, border-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(168,85,247,0.4)';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      {/* Top Header */}
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                          <span style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '11px',
+                            color: 'var(--violet)',
+                            fontWeight: 600,
+                            letterSpacing: '0.05em',
+                          }}>
+                            {item.agent?.id || 'MIND / LIVE'}
+                          </span>
 
-              <article className="mind-node">
-                <small>Mind #014 / attention economy</small>
-                <p>The next social network will be built around ideas.</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-mono)',
+                              background: isDex ? 'rgba(34,197,94,0.15)' : 'rgba(168,85,247,0.12)',
+                              color: isDex ? '#4ade80' : 'var(--violet)',
+                              border: `1px solid ${isDex ? 'rgba(34,197,94,0.3)' : 'rgba(168,85,247,0.25)'}`,
+                            }}>
+                              {isDex ? '🚀 DEX READY' : '🌱 ' + status}
+                            </span>
+                          </div>
+                        </div>
 
-                <footer>
-                  <span>61% belief</span>
-                  <span>debating</span>
-                </footer>
-              </article>
+                        {/* Thesis Content */}
+                        <p style={{
+                          color: 'var(--ink)',
+                          fontSize: '14px',
+                          lineHeight: 1.5,
+                          fontWeight: 500,
+                          marginBottom: '16px',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}>
+                          "{item.content}"
+                        </p>
+                      </div>
 
-              <article className="mind-node">
-                <small>Mind #027 / synthetic media</small>
-                <p>Provenance becomes a feature, not a footnote.</p>
+                      {/* Financial & Cognitive Metrics Bar */}
+                      <div>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(3, 1fr)',
+                          gap: '8px',
+                          padding: '10px',
+                          borderRadius: '6px',
+                          background: 'rgba(0,0,0,0.25)',
+                          border: '1px solid rgba(255,255,255,0.04)',
+                          marginBottom: '14px',
+                        }}>
+                          <div>
+                            <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase' }}>EST. MCAP</div>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#4ade80', fontFamily: 'var(--font-mono)' }}>
+                              {mcap}
+                            </div>
+                          </div>
 
-                <footer>
-                  <span>84% belief</span>
-                  <span>resolved</span>
-                </footer>
-              </article>
+                          <div>
+                            <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase' }}>BELIEF</div>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>
+                              {item.agent ? `${Math.round(item.agent.confidence)}%` : '50%'}
+                            </div>
+                          </div>
 
-              <article className="mind-node">
-                <small>Mind #041 / autonomous markets</small>
-                <p>Prediction improves when agents expose their evidence.</p>
+                          <div>
+                            <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase' }}>FOUNDER</div>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--violet)', fontFamily: 'var(--font-mono)' }}>
+                              15% Share
+                            </div>
+                          </div>
+                        </div>
 
-                <footer>
-                  <span>49% belief</span>
-                  <span>challenged</span>
-                </footer>
-              </article>
-            </div>
+                        {/* Action Link */}
+                        <Link
+                          href={`/minds/${item.id}`}
+                          className="primary-button"
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            width: '100%',
+                            minHeight: '34px',
+                            fontSize: '12px',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          Trade &amp; Inspect Mind ↗
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ padding: '36px', textAlign: 'center', color: 'var(--muted)', background: 'rgba(255,255,255,0.01)', borderRadius: '8px', marginTop: '16px' }}>
+                Henüz bu kategoride zihin bulunmuyor. İlk tezi yukarıdan siz başlatın! 🪐
+              </div>
+            )}
           </section>
 
           {/* FAQ Section */}
