@@ -4,7 +4,7 @@
 // GET /api/ideas/[id] — Get idea details with Mind state
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getIdea, getAgentByIdea, getFollowerCount, isFollowing, getUserByWallet, getPredictionsByMind, getMindAsset, getMindFounder } from '@/lib/database/queries';
+import { getIdea, getAgent, getAgentByIdea, getFollowerCount, isFollowing, getUserByWallet, getPredictionsByMind, getMindAsset, getMindFounder } from '@/lib/database/queries';
 import { getMindState } from '@/lib/ai/mind-engine';
 
 export async function GET(
@@ -19,7 +19,7 @@ export async function GET(
       return NextResponse.json({ error: 'Idea not found' }, { status: 404 });
     }
 
-    const agent = idea.agentId ? getAgentByIdea(idea.id) : null;
+    const agent = getAgentByIdea(idea.id) || (idea.agentId ? getAgent(idea.agentId) : null);
     const mindState = agent ? getMindState(agent.id) : null;
     const predictions = agent ? getPredictionsByMind(agent.id) : [];
     const followerCount = getFollowerCount(idea.id);

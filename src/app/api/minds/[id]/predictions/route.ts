@@ -5,8 +5,9 @@
 // POST /api/minds/[id]/predictions — Create a new prediction for a Mind
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPredictionsByMind, createPrediction, getAgent } from '@/lib/database/queries';
+import { getPredictionsByMind, createPrediction, getAgent, getAgentByIdea } from '@/lib/database/queries';
 import { updateMindTrackRecordAndReputation } from '@/lib/ai/reputation-service';
+import { analyzeMind } from '@/lib/ai/mind-engine';
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +15,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const predictions = getPredictionsByMind(id);
+    const agent = getAgent(id) || getAgentByIdea(id);
+    const mindId = agent ? agent.id : id;
+    const predictions = getPredictionsByMind(mindId);
     return NextResponse.json({ predictions });
   } catch (error) {
     console.error('[API] Get predictions error:', error);
@@ -28,7 +31,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const agent = getAgent(id);
+    const agent = getAgent(id) || getAgentByIdea(id);
     if (!agent) {
       return NextResponse.json({ error: 'Mind not found' }, { status: 404 });
     }
@@ -52,7 +55,7 @@ export async function POST(
     }
 
     const prediction = createPrediction(
-      id,
+      agent.id,
       claim,
       targetValue || null,
       targetMetric || null,
@@ -63,7 +66,12 @@ export async function POST(
     );
 
     // Recalculate reputation
-    updateMindTrackRecordAndReputation(id);
+    updateMindTrackRecordAndReputation(agent.id);
+
+    // Trigger AI argument and evidence analysis in the background
+    analyzeMind(agent.id).catch((err) => {
+      console.error(`[API] Analysis after prediction failed for ${agent.id}:`, err);
+    });
 
     return NextResponse.json({ prediction }, { status: 201 });
   } catch (error) {

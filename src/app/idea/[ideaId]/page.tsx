@@ -57,6 +57,56 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
   const [tradeError, setTradeError] = useState('');
   const [tradeTxHash, setTradeTxHash] = useState('');
 
+  // Step 2: Prediction Anchoring states
+  const [predictionClaim, setPredictionClaim] = useState('');
+  const [predictionConfidence, setPredictionConfidence] = useState(75);
+  const [isSubmittingPrediction, setIsSubmittingPrediction] = useState(false);
+  const [predictionSuccessMessage, setPredictionSuccessMessage] = useState('');
+
+  const handleAnchorPrediction = async (claimToSubmit?: string, confidenceToSubmit?: number) => {
+    const finalClaim = claimToSubmit || predictionClaim;
+    const finalConf = confidenceToSubmit !== undefined ? confidenceToSubmit : predictionConfidence;
+    if (!finalClaim.trim() || !data) return;
+
+    setIsSubmittingPrediction(true);
+    setPredictionSuccessMessage('');
+
+    try {
+      const targetMindId = data.agent?.id || data.idea?.id || ideaId;
+      const res = await fetch(`/api/minds/${targetMindId}/predictions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          claim: finalClaim.trim(),
+          confidenceAtCreation: Number(finalConf) || 50,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to submit prediction.');
+      }
+
+      const result = await res.json();
+      setPredictionClaim('');
+      setPredictionSuccessMessage('Tahmin kilitlendi! Yapay zekâ kanıt taramasını ve argüman analizini başlattı.');
+
+      // Refresh idea detail
+      const detailRes = await fetch(`/api/ideas/${data.idea.id}`);
+      if (detailRes.ok) {
+        const detailResult = await detailRes.json();
+        setData(detailResult);
+      }
+
+      setActiveSection('arguments');
+    } catch (err: any) {
+      console.error('Failed to anchor prediction:', err);
+      alert(err.message || 'Tahmin kaydedilemedi. Lütfen tekrar deneyin.');
+    } finally {
+      setIsSubmittingPrediction(false);
+    }
+  };
+
   const handleExecuteTrade = async () => {
     if (!isConnected || !address || !data?.agent) return;
 
@@ -702,6 +752,134 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
             </div>
           )}
 
+          {/* Phase 2: Anchor Prediction Callout */}
+          {(!data.predictions || data.predictions.length === 0) && (
+            <div className="card" style={{
+              marginBottom: '32px',
+              border: '2px solid var(--violet)',
+              background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(0,0,0,0.2))',
+              padding: '24px',
+              borderRadius: '12px',
+              boxShadow: '0 0 24px rgba(168,85,247,0.15)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  background: 'var(--violet)',
+                  color: '#fff',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-mono)'
+                }}>
+                  AŞAMA 2 / SIRADAKİ ADIM
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--slate)' }}>
+                  Zihnin Düşünmesi ve Münazarası İçin Tahmin Gereklidir
+                </span>
+              </div>
+
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', color: 'var(--ink)', margin: '8px 0' }}>
+                🎯 Tezinizi Test Edilebilir Bir Tahminle Güçlendirin
+              </h3>
+              
+              <p style={{ fontSize: '13px', color: 'var(--slate)', lineHeight: 1.5, marginBottom: '16px' }}>
+                Otonom zihninizin internetten bağımsız kanıtlar toplaması, 5 rauntluk münazara savları oluşturması ve değer kazanması için somut bir tahmin belirleyin.
+              </p>
+
+              {/* Quick Suggestion Pill */}
+              <div style={{ marginBottom: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const suggestion = `${idea.content.slice(0, 100).trim()} will achieve verifiable mainstream adoption by 2028.`;
+                    setPredictionClaim(suggestion);
+                  }}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px dashed var(--violet)',
+                    color: 'var(--ink)',
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <span style={{ color: 'var(--violet)', fontWeight: 700 }}>💡 Otomatik Öneri:</span>
+                  <span style={{ fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    "{idea.content.slice(0, 80)}... 2028'e kadar doğrulanabilir aşamalara ulaşacak."
+                  </span>
+                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--violet)' }}>Kullan ↗</span>
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleAnchorPrediction();
+              }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Tahmin / İddia (Claim)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Örn: 2028 yılına kadar yapay zekâ ajanları internet trafiğinin %50'sinden fazlasını yönetecek."
+                    value={predictionClaim}
+                    onChange={(e) => setPredictionClaim(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '6px',
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--ink)',
+                      fontSize: '14px',
+                    }}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--slate)' }}>Başlangıç İnancı:</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="99"
+                      value={predictionConfidence}
+                      onChange={(e) => setPredictionConfidence(Number(e.target.value))}
+                      style={{ width: '120px', accentColor: 'var(--violet)' }}
+                    />
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: 'var(--violet)' }}>
+                      %{predictionConfidence}
+                    </span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="primary-button"
+                    disabled={isSubmittingPrediction || !predictionClaim.trim()}
+                    style={{ minHeight: '38px', padding: '0 20px', fontSize: '13px' }}
+                  >
+                    {isSubmittingPrediction ? 'Ajan Başlatılıyor...' : 'Tahmini Kilitle & Ajanı Başlat 🚀'}
+                  </button>
+                </div>
+
+                {predictionSuccessMessage && (
+                  <div style={{ padding: '10px', borderRadius: '6px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80', fontSize: '12px', textAlign: 'center' }}>
+                    {predictionSuccessMessage}
+                  </div>
+                )}
+              </form>
+            </div>
+          )}
+
           {/* Section Tabs */}
           <div className="feed-tabs">
             {(['arguments', 'evidence', 'predictions', 'activity'] as const).map((s) => (
@@ -926,7 +1104,8 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                   if (!claim) return;
 
                   try {
-                    const res = await fetch(`/api/minds/${agent?.id}/predictions`, {
+                    const targetMindId = agent?.id || data?.agent?.id || idea.id || ideaId;
+                    const res = await fetch(`/api/minds/${targetMindId}/predictions`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({

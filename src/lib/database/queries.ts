@@ -164,6 +164,8 @@ export function createAgent(ideaId: string, thesis: string, systemPrompt: string
     VALUES (?, ?, ?, 50.0, 50.0, ?, ?, 0.0, ?, ?, ?)
   `).run(id, ideaId, thesis, systemPrompt, defaultBudget, defaultBudget, now, now);
 
+  db.prepare('UPDATE ideas SET agent_id = ? WHERE id = ?').run(id, ideaId);
+
   db.prepare(`
     INSERT INTO mind_thesis_versions (id, mind_id, version, thesis, reason, generated_by, confidence, created_at)
     VALUES (?, ?, 1, ?, 'Original Thesis Birth', 'USER', 50.0, ?)
