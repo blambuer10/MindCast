@@ -1074,32 +1074,52 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
           {/* Evidence Section */}
           {activeSection === 'evidence' && (
             <div className="animate-fade-in">
-              {/* Evidence Filter Tabs */}
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', justifyContent: 'center' }}>
-                {(['all', 'supporting', 'opposing'] as const).map((tab) => {
-                  const count = tab === 'all' 
-                    ? (mindState?.allEvidence?.length || 0)
-                    : tab === 'supporting'
-                    ? (mindState?.evidence?.length || 0)
-                    : (mindState?.counterEvidence?.length || 0);
-                  return (
-                    <button
-                      key={tab}
-                      onClick={() => setEvidenceTab(tab)}
-                      className={`btn btn-sm ${evidenceTab === tab ? 'btn-primary' : 'btn-secondary'}`}
-                      style={{ textTransform: 'uppercase', fontSize: 'var(--text-xs)' }}
-                    >
-                      {tab} ({count})
-                    </button>
-                  );
-                })}
+              {/* Evidence Filter Tabs & Search Action */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {(['all', 'supporting', 'opposing'] as const).map((tab) => {
+                    const count = tab === 'all' 
+                      ? (mindState?.allEvidence?.length || 0)
+                      : tab === 'supporting'
+                      ? (mindState?.evidence?.length || 0)
+                      : (mindState?.counterEvidence?.length || 0);
+                    return (
+                      <button
+                        key={tab}
+                        onClick={() => setEvidenceTab(tab)}
+                        className={`btn btn-sm ${evidenceTab === tab ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ textTransform: 'uppercase', fontSize: 'var(--text-xs)' }}
+                      >
+                        {tab} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+                {agent && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await fetch(`/api/agents/${agent.id}/refresh`, { method: 'POST' });
+                        const res = await fetch(`/api/ideas/${ideaId}?walletAddress=${address || ''}`);
+                        if (res.ok) setData(await res.json());
+                      } catch (err) {
+                        console.error(err);
+                      }
+                    }}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    ⚡ Search New Evidence
+                  </button>
+                )}
               </div>
 
               {/* Evidence List */}
               {(() => {
                 const list = (mindState?.allEvidence || []).filter(ev => {
-                  if (evidenceTab === 'supporting') return ev.direction === 'SUPPORTING';
-                  if (evidenceTab === 'opposing') return ev.direction === 'OPPOSING';
+                  const dir = String(ev.direction || ev.stance || '').toUpperCase();
+                  if (evidenceTab === 'supporting') return dir === 'SUPPORTING';
+                  if (evidenceTab === 'opposing') return dir === 'OPPOSING';
                   return true;
                 });
 
@@ -1114,7 +1134,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     {list.map((ev) => {
-                      const isSupporting = ev.direction === 'SUPPORTING';
+                      const isSupporting = String(ev.direction || ev.stance || '').toUpperCase() === 'SUPPORTING';
                       const impactCol = isSupporting ? 'var(--violet)' : 'var(--coral)';
                       const impactSign = ev.confidenceImpact > 0 ? `+${ev.confidenceImpact}` : ev.confidenceImpact;
 
