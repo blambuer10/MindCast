@@ -175,7 +175,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
         const sharePrice = (0.10 + (repScore / 250)) / 300;
         const grossCost = (percentageNum * 1000) * sharePrice;
         const costAmount = (grossCost - (grossCost * 0.02)).toFixed(6); // netAmount expected by verifier
-        const recipient = process.env.PAYMENT_RECIPIENT_ADDRESS || '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2';
+        const recipient = process.env.NEXT_PUBLIC_PAYMENT_RECIPIENT_ADDRESS || '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2';
         
         let txHash = '';
         try {
