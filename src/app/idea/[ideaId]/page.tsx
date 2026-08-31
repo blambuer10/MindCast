@@ -89,7 +89,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
 
       const result = await res.json();
       setPredictionClaim('');
-      setPredictionSuccessMessage('Tahmin kilitlendi! Yapay zekâ kanıt taramasını ve argüman analizini başlattı.');
+      setPredictionSuccessMessage('Prediction locked! Mind is researching evidence and structuring arguments.');
 
       // Refresh idea detail
       const detailRes = await fetch(`/api/ideas/${data.idea.id}`);
@@ -101,9 +101,43 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
       setActiveSection('arguments');
     } catch (err: any) {
       console.error('Failed to anchor prediction:', err);
-      alert(err.message || 'Tahmin kaydedilemedi. Lütfen tekrar deneyin.');
+      alert(err.message || 'Failed to submit prediction. Please try again.');
     } finally {
       setIsSubmittingPrediction(false);
+    }
+  };
+
+  // Lifecycle and DEX graduation states
+  const [isGraduating, setIsGraduating] = useState(false);
+  const [graduationMessage, setGraduationMessage] = useState('');
+
+  const handleGraduateLifecycle = async (targetStatus?: string) => {
+    if (!data?.agent) return;
+    setIsGraduating(true);
+    setGraduationMessage('');
+    try {
+      const res = await fetch(`/api/minds/${data.agent.id}/lifecycle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetStatus }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to update lifecycle');
+      }
+      const resData = await res.json();
+      setGraduationMessage(`Mind advanced to ${resData.newStatus}!`);
+
+      const detailRes = await fetch(`/api/ideas/${data.idea.id}`);
+      if (detailRes.ok) {
+        const detailResult = await detailRes.json();
+        setData(detailResult);
+      }
+    } catch (e: any) {
+      console.error('Lifecycle error:', e);
+      alert(e.message || 'Graduation update failed.');
+    } finally {
+      setIsGraduating(false);
     }
   };
 
@@ -547,165 +581,167 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                   Mind Shares
                 </span>
                 
-                {agent.lifecycleStatus === 'MARKET_READY' || agent.lifecycleStatus === 'MARKET_ACTIVE' || data?.mindAsset?.marketStatus === 'ACTIVE' ? (
-                  (() => {
-                    const repScore = Math.min(100, Math.max(10, Math.round(
-                      (agent.credibility * 0.4) + 
-                      ((agent.predictionAccuracy || 0.7) * 40) + 
-                      ((followers || 0) / 20) + 
-                      (agent.confidence * 0.1)
-                    )));
-                    
-                    const sharePrice = 0.10 + (repScore / 250);
-                    const formattedSharePrice = `$${sharePrice.toFixed(2)}`;
-                    
-                    const shareSupply = 100000;
-                    const calculatedMarketCap = shareSupply * sharePrice;
-                    const formattedMarketCap = `$${calculatedMarketCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-                    
-                    const holdersCount = Math.max(1, Math.floor((followers || 0) / 7) + 1);
-                    const dailyVolume = calculatedMarketCap * 0.20;
-                    const formattedVolume = `$${dailyVolume.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+                {(() => {
+                  const repScore = Math.min(100, Math.max(10, Math.round(
+                    (agent.credibility * 0.4) + 
+                    ((agent.predictionAccuracy || 0.7) * 40) + 
+                    ((followers || 0) / 20) + 
+                    (agent.confidence * 0.1)
+                  )));
+                  
+                  const sharePrice = 0.10 + (repScore / 250);
+                  const formattedSharePrice = `$${sharePrice.toFixed(2)}`;
+                  
+                  const shareSupply = 100000;
+                  const calculatedMarketCap = shareSupply * sharePrice;
+                  const formattedMarketCap = `$${calculatedMarketCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+                  
+                  const holdersCount = Math.max(1, Math.floor((followers || 0) / 7) + 1);
+                  const dailyVolume = calculatedMarketCap * 0.20;
+                  const formattedVolume = `$${dailyVolume.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
-                    const userAlloc = data?.userAllocation || 0;
-                    const userSharesCount = userAlloc * 1000;
-                    const userPositionValue = userSharesCount * sharePrice;
+                  const userAlloc = data?.userAllocation || 15; // default 15% founder share
+                  const userSharesCount = userAlloc * 1000;
+                  const userPositionValue = userSharesCount * sharePrice;
+                  const isDexActive = agent.lifecycleStatus === 'MARKET_ACTIVE';
 
-                    return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {/* Title & Price Row */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--parchment)' }}>
-                              {agent.id}
-                            </div>
-                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>
-                              Valued on intellectual reputation
-                            </div>
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {/* Title & Price Row */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--parchment)' }}>
+                            {agent.id}
                           </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--success)' }}>
-                              {formattedSharePrice}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>
-                              +18.4%
-                            </div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: isDexActive ? '#4ade80' : 'var(--violet)', fontWeight: 600 }}>
+                            {isDexActive ? '🚀 DEX LISTED (Uniswap & Aerodrome)' : `⚡ BONDING CURVE (${agent.lifecycleStatus})`}
                           </div>
                         </div>
-
-                        <hr style={{ border: '0', borderTop: '1px solid var(--border)', margin: '0' }} />
-
-                        {/* Grid Stats */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                          <div>
-                            <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Market Cap</div>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--parchment)' }}>
-                              {formattedMarketCap}
-                            </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--success)' }}>
+                            {formattedSharePrice}
                           </div>
-                          <div>
-                            <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Holders</div>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--parchment)' }}>
-                              {holdersCount}
-                            </div>
+                          <div style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>
+                            +18.4%
                           </div>
-                          <div>
-                            <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Volume (24h)</div>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--parchment)' }}>
-                              {formattedVolume}
-                            </div>
-                          </div>
-                        </div>
-
-                        <hr style={{ border: '0', borderTop: '1px solid var(--border)', margin: '0' }} />
-
-                        {/* Position Row */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)', padding: '10px 12px', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                          <div>
-                            <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Your Position</div>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--violet)' }}>
-                              {userSharesCount.toLocaleString()} MIND
-                            </div>
-                          </div>
-                          <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--parchment)' }}>
-                            ${userPositionValue.toFixed(2)}
-                          </div>
-                        </div>
-
-                        {/* Trade Buttons */}
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                          <button 
-                            className="btn btn-primary" 
-                            style={{ flex: 1, minHeight: '36px', fontSize: 'var(--text-xs)' }}
-                            onClick={() => {
-                              setTradeType('buy');
-                              setTradePercentage('1');
-                              setTradeState('idle');
-                              setTradeError('');
-                              setShowTradeModal(true);
-                            }}
-                          >
-                            Buy Shares
-                          </button>
-                          <button 
-                            className="btn btn-secondary" 
-                            style={{ flex: 1, minHeight: '36px', fontSize: 'var(--text-xs)' }}
-                            onClick={() => {
-                              setTradeType('sell');
-                              setTradePercentage('1');
-                              setTradeState('idle');
-                              setTradeError('');
-                              setShowTradeModal(true);
-                            }}
-                          >
-                            Sell Shares
-                          </button>
                         </div>
                       </div>
-                    );
-                  })()
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'center', padding: '12px 0 6px 0' }}>
-                    <div style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '18px',
-                      fontWeight: 700,
-                      color: 'var(--muted)',
-                      letterSpacing: '1px'
-                    }}>
-                      COMING SOON
-                    </div>
-                    
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--slate)', lineHeight: '1.4', margin: '0' }}>
-                      Every Mind may eventually become economically supported by its community.
-                    </p>
 
-                    <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
-                        Founder Allocation
-                      </div>
-                      <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--violet)', fontFamily: 'var(--font-mono)' }}>
-                        15%
-                      </div>
-                      <p style={{ fontSize: '10px', color: 'var(--muted)', margin: '6px 0 0 0', lineHeight: '1.3' }}>
-                        Reserved for the original creator when Mind Shares launch.
-                      </p>
-                    </div>
+                      <hr style={{ border: '0', borderTop: '1px solid var(--border)', margin: '0' }} />
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                      <span className="badge badge-neutral" style={{ fontSize: '10px', display: 'inline-block', alignSelf: 'center' }}>
-                        NOT YET AVAILABLE
-                      </span>
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        style={{ fontSize: '10px', minHeight: '32px' }}
-                        onClick={() => alert('You will be notified as soon as Mind Shares for this Mind launch!')}
-                      >
-                        Notify Me
-                      </button>
+                      {/* Grid Stats */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Market Cap</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--parchment)' }}>
+                            {formattedMarketCap}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Holders</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--parchment)' }}>
+                            {holdersCount}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Volume (24h)</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--parchment)' }}>
+                            {formattedVolume}
+                          </div>
+                        </div>
+                      </div>
+
+                      <hr style={{ border: '0', borderTop: '1px solid var(--border)', margin: '0' }} />
+
+                      {/* Position Row */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)', padding: '10px 12px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Your Position (15% Founder Share)</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--violet)' }}>
+                            {userSharesCount.toLocaleString()} MIND
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: '#4ade80' }}>
+                          ${userPositionValue.toFixed(2)}
+                        </div>
+                      </div>
+
+                      {/* Trade Buttons */}
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                        <button 
+                          className="btn btn-primary" 
+                          style={{ flex: 1, minHeight: '36px', fontSize: 'var(--text-xs)' }}
+                          onClick={() => {
+                            setTradeType('buy');
+                            setTradePercentage('1');
+                            setTradeState('idle');
+                            setTradeError('');
+                            setShowTradeModal(true);
+                          }}
+                        >
+                          Buy Shares
+                        </button>
+                        <button 
+                          className="btn btn-secondary" 
+                          style={{ flex: 1, minHeight: '36px', fontSize: 'var(--text-xs)' }}
+                          onClick={() => {
+                            setTradeType('sell');
+                            setTradePercentage('1');
+                            setTradeState('idle');
+                            setTradeError('');
+                            setShowTradeModal(true);
+                          }}
+                        >
+                          Sell Shares
+                        </button>
+                      </div>
+
+                      {/* DEX Graduation Progress & Controls */}
+                      {isDexActive ? (
+                        <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                          <span>✅ DEX Pool Active on Uniswap v3 &amp; Aerodrome</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>LP Burned 🔥</span>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', marginTop: '4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '6px' }}>
+                            <span style={{ color: 'var(--muted)' }}>DEX Graduation Progress</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--violet)', fontWeight: 600 }}>
+                              {agent.lifecycleStatus} ➔ DEX LISTED
+                            </span>
+                          </div>
+                          <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden', marginBottom: '8px' }}>
+                            <div style={{
+                              width: agent.lifecycleStatus === 'PROVEN' ? '75%' : agent.lifecycleStatus === 'EMERGING' ? '50%' : '25%',
+                              height: '100%',
+                              background: 'linear-gradient(90deg, var(--violet), #4ade80)'
+                            }}></div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--slate)' }}>Target: $50k MCAP &amp; Gates</span>
+                            <button
+                              type="button"
+                              onClick={() => handleGraduateLifecycle()}
+                              disabled={isGraduating}
+                              style={{
+                                background: 'rgba(168,85,247,0.15)',
+                                border: '1px solid var(--violet)',
+                                color: '#fff',
+                                fontSize: '10px',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontWeight: 600
+                              }}
+                            >
+                              {isGraduating ? 'Graduating...' : 'Advance Stage / Test DEX ↗'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -772,19 +808,19 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                   fontWeight: 700,
                   fontFamily: 'var(--font-mono)'
                 }}>
-                  AŞAMA 2 / SIRADAKİ ADIM
+                  PHASE 2 / NEXT STEP
                 </span>
                 <span style={{ fontSize: '12px', color: 'var(--slate)' }}>
-                  Zihnin Düşünmesi ve Münazarası İçin Tahmin Gereklidir
+                  Testable Prediction Required for Evidence Crawling & Debates
                 </span>
               </div>
 
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', color: 'var(--ink)', margin: '8px 0' }}>
-                🎯 Tezinizi Test Edilebilir Bir Tahminle Güçlendirin
+                🎯 Anchor Your Thesis with a Testable Prediction
               </h3>
               
               <p style={{ fontSize: '13px', color: 'var(--slate)', lineHeight: 1.5, marginBottom: '16px' }}>
-                Otonom zihninizin internetten bağımsız kanıtlar toplaması, 5 rauntluk münazara savları oluşturması ve değer kazanması için somut bir tahmin belirleyin.
+                To enable your autonomous Mind to gather real-world citations, construct 5-round debate arguments, and graduate toward DEX liquidity, define its first testable prediction.
               </p>
 
               {/* Quick Suggestion Pill */}
@@ -810,11 +846,11 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                     gap: '8px'
                   }}
                 >
-                  <span style={{ color: 'var(--violet)', fontWeight: 700 }}>💡 Otomatik Öneri:</span>
+                  <span style={{ color: 'var(--violet)', fontWeight: 700 }}>💡 Auto Suggestion:</span>
                   <span style={{ fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    "{idea.content.slice(0, 80)}... 2028'e kadar doğrulanabilir aşamalara ulaşacak."
+                    "{idea.content.slice(0, 80)}... will achieve verifiable adoption by 2028."
                   </span>
-                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--violet)' }}>Kullan ↗</span>
+                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--violet)' }}>Use ↗</span>
                 </button>
               </div>
 
@@ -825,11 +861,11 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
               }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                    Tahmin / İddia (Claim)
+                    Prediction / Claim
                   </label>
                   <input
                     type="text"
-                    placeholder="Örn: 2028 yılına kadar yapay zekâ ajanları internet trafiğinin %50'sinden fazlasını yönetecek."
+                    placeholder="e.g. By 2028, autonomous AI agents will manage over 40% of decentralized liquidity."
                     value={predictionClaim}
                     onChange={(e) => setPredictionClaim(e.target.value)}
                     style={{
@@ -847,7 +883,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--slate)' }}>Başlangıç İnancı:</span>
+                    <span style={{ fontSize: '12px', color: 'var(--slate)' }}>Initial Confidence:</span>
                     <input
                       type="range"
                       min="10"
@@ -867,7 +903,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                     disabled={isSubmittingPrediction || !predictionClaim.trim()}
                     style={{ minHeight: '38px', padding: '0 20px', fontSize: '13px' }}
                   >
-                    {isSubmittingPrediction ? 'Ajan Başlatılıyor...' : 'Tahmini Kilitle & Ajanı Başlat 🚀'}
+                    {isSubmittingPrediction ? 'Awakening Mind...' : 'Lock Prediction & Awaken Deep Search 🚀'}
                   </button>
                 </div>
 

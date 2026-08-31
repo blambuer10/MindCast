@@ -69,7 +69,8 @@ export function createIdea(creatorId: string, content: string): Idea {
 
 export function getIdea(id: string): Idea | undefined {
   const db = getDb();
-  const row = db.prepare('SELECT * FROM ideas WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+  const cleanId = (id || '').trim();
+  const row = db.prepare('SELECT * FROM ideas WHERE UPPER(id) = UPPER(?) OR UPPER(agent_id) = UPPER(?)').get(cleanId, cleanId) as Record<string, unknown> | undefined;
   if (!row) return undefined;
   return mapIdea(row);
 }
@@ -193,14 +194,16 @@ export function createAgent(ideaId: string, thesis: string, systemPrompt: string
 
 export function getAgent(id: string): Agent | undefined {
   const db = getDb();
-  const row = db.prepare('SELECT * FROM agents WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+  const cleanId = (id || '').trim();
+  const row = db.prepare('SELECT * FROM agents WHERE UPPER(id) = UPPER(?) OR UPPER(idea_id) = UPPER(?)').get(cleanId, cleanId) as Record<string, unknown> | undefined;
   if (!row) return undefined;
   return mapAgent(row);
 }
 
 export function getAgentByIdea(ideaId: string): Agent | undefined {
   const db = getDb();
-  const row = db.prepare('SELECT * FROM agents WHERE idea_id = ?').get(ideaId) as Record<string, unknown> | undefined;
+  const cleanId = (ideaId || '').trim();
+  const row = db.prepare('SELECT * FROM agents WHERE UPPER(idea_id) = UPPER(?) OR UPPER(id) = UPPER(?)').get(cleanId, cleanId) as Record<string, unknown> | undefined;
   if (!row) return undefined;
   return mapAgent(row);
 }
@@ -836,7 +839,13 @@ export function getPrediction(id: string): import('../types').Prediction | undef
 
 export function getPredictionsByMind(mindId: string): import('../types').Prediction[] {
   const db = getDb();
-  const rows = db.prepare('SELECT * FROM predictions WHERE mind_id = ? ORDER BY created_at DESC').all(mindId) as Record<string, unknown>[];
+  const cleanId = (mindId || '').trim();
+  const rows = db.prepare(`
+    SELECT * FROM predictions 
+    WHERE UPPER(mind_id) = UPPER(?) 
+       OR UPPER(mind_id) IN (SELECT UPPER(id) FROM agents WHERE UPPER(idea_id) = UPPER(?))
+    ORDER BY created_at DESC
+  `).all(cleanId, cleanId) as Record<string, unknown>[];
   return rows.map(mapPrediction);
 }
 

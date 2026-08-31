@@ -5,9 +5,9 @@
 // POST /api/minds/[id]/predictions — Create a new prediction for a Mind
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPredictionsByMind, createPrediction, getAgent, getAgentByIdea } from '@/lib/database/queries';
+import { getPredictionsByMind, createPrediction, getAgent, getAgentByIdea, getIdea } from '@/lib/database/queries';
 import { updateMindTrackRecordAndReputation } from '@/lib/ai/reputation-service';
-import { analyzeMind } from '@/lib/ai/mind-engine';
+import { analyzeMind, birthMind } from '@/lib/ai/mind-engine';
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +15,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const agent = getAgent(id) || getAgentByIdea(id);
+    let agent = getAgent(id) || getAgentByIdea(id);
+    if (!agent) {
+      const idea = getIdea(id);
+      if (idea) {
+        agent = getAgentByIdea(idea.id) || (idea.agentId ? getAgent(idea.agentId) : undefined);
+      }
+    }
     const mindId = agent ? agent.id : id;
     const predictions = getPredictionsByMind(mindId);
     return NextResponse.json({ predictions });
@@ -31,7 +37,17 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const agent = getAgent(id) || getAgentByIdea(id);
+    let agent = getAgent(id) || getAgentByIdea(id);
+    if (!agent) {
+      const idea = getIdea(id);
+      if (idea) {
+        agent = getAgentByIdea(idea.id) || (idea.agentId ? getAgent(idea.agentId) : undefined);
+        if (!agent) {
+          agent = await birthMind(idea.id, idea.content);
+        }
+      }
+    }
+
     if (!agent) {
       return NextResponse.json({ error: 'Mind not found' }, { status: 404 });
     }

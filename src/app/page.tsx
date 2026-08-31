@@ -581,7 +581,7 @@ export default function LandingPage() {
                     transition: 'all 0.2s',
                   }}
                 >
-                  ⚡ Son Zihinler (Recent)
+                  ⚡ Recent Minds
                 </button>
                 <button
                   type="button"
@@ -598,7 +598,7 @@ export default function LandingPage() {
                     transition: 'all 0.2s',
                   }}
                 >
-                  💎 En Yüksek MCAP
+                  💎 Top Market Cap
                 </button>
                 <button
                   type="button"
@@ -615,7 +615,7 @@ export default function LandingPage() {
                     transition: 'all 0.2s',
                   }}
                 >
-                  🚀 DEX &amp; Mezunlar
+                  🚀 DEX &amp; Graduated
                 </button>
               </div>
             </div>
@@ -624,7 +624,7 @@ export default function LandingPage() {
             {streamLoading ? (
               <div style={{ padding: '48px', textAlign: 'center', color: 'var(--muted)' }}>
                 <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
-                Noosphere verileri çekiliyor...
+                Loading Noosphere minds...
               </div>
             ) : streamMinds.length > 0 ? (
               <div style={{
@@ -744,7 +744,7 @@ export default function LandingPage() {
 
                         {/* Action Link */}
                         <Link
-                          href={`/minds/${item.id}`}
+                          href={`/idea/${item.id}`}
                           className="primary-button"
                           style={{
                             display: 'flex',
@@ -765,7 +765,7 @@ export default function LandingPage() {
               </div>
             ) : (
               <div style={{ padding: '36px', textAlign: 'center', color: 'var(--muted)', background: 'rgba(255,255,255,0.01)', borderRadius: '8px', marginTop: '16px' }}>
-                Henüz bu kategoride zihin bulunmuyor. İlk tezi yukarıdan siz başlatın! 🪐
+                No minds found in this category yet. Be the first to awaken a thesis above! 🪐
               </div>
             )}
           </section>
