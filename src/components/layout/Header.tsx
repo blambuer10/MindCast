@@ -38,19 +38,20 @@ export default function Header() {
         <a
           href="/#cast"
           className="nav-cta"
+          id="nav-cast-button"
           style={{ marginRight: '16px', cursor: 'pointer' }}
           onClick={(e) => {
-            if (typeof window !== 'undefined' && window.location.pathname === '/') {
-              e.preventDefault();
-              const castSection = document.getElementById('cast') || document.getElementById('thesis');
-              if (castSection) {
-                castSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                setTimeout(() => {
-                  const textarea = document.getElementById('thesis') as HTMLTextAreaElement | null;
-                  if (textarea) {
-                    textarea.focus();
-                  }
-                }, 400);
+            if (typeof window !== 'undefined') {
+              const textarea = document.getElementById('thesis');
+              const castSection = document.getElementById('cast');
+              if (textarea || castSection) {
+                e.preventDefault();
+                (textarea || castSection)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (textarea) {
+                  textarea.focus();
+                }
+              } else {
+                window.location.href = '/#cast';
               }
             }
           }}
@@ -60,7 +61,7 @@ export default function Header() {
         
         {isConnected && address ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Link
+            <a
               href={`/profile/${address}`}
               id="header-profile-badge"
               style={{
@@ -70,24 +71,24 @@ export default function Header() {
                 textDecoration: 'none',
                 padding: '4px 10px',
                 borderRadius: '6px',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.15)',
                 cursor: 'pointer',
                 transition: 'background 0.2s, border-color 0.2s',
               }}
               onClick={(e) => {
+                e.preventDefault();
                 if (typeof window !== 'undefined') {
-                  // Direct navigation fallback ensures instant jump
                   window.location.href = `/profile/${address}`;
                 }
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
               }}
             >
               {/* Mini Avatar */}
@@ -113,7 +114,7 @@ export default function Header() {
               }}>
                 {formatAddress(address)}
               </span>
-            </Link>
+            </a>
             <button
               className="primary-button"
               style={{ minHeight: '34px', padding: '0 12px', fontSize: '12px' }}

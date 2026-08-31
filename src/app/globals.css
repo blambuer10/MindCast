@@ -1528,10 +1528,21 @@ details p {
   }
 
   .topbar {
-    height: 66px;
+    height: auto;
+    min-height: 66px;
+    padding: 10px 0;
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
   .nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .nav > a:not(.nav-cta):not(#header-profile-badge) {
     display: none;
   }
 
