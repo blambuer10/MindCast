@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     const user = findOrCreateUser(walletAddress);
 
     // Create Payment Record for the challenge
-    const recipientAddress = process.env.PAYMENT_RECIPIENT_ADDRESS || '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2';
+    const recipientAddress = process.env.NEXT_PUBLIC_BONDING_VAULT_ADDRESS || process.env.BONDING_VAULT_ADDRESS || '0xf2f726598E96D85b9b08ece943590529555b867d';
     const payment = createPayment({
       userId: user.id,
       ideaId: opposingIdeaId,

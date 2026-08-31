@@ -244,13 +244,25 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
   };
 
   const handleInitiateChallenge = async () => {
-    if (!isConnected || !address || !activeEvidenceId) return;
+    if (!isConnected || !address) {
+      try {
+        await connect();
+      } catch (err: any) {
+        setChallengeError('Please connect your wallet to challenge.');
+        return;
+      }
+    }
+
+    if (!activeEvidenceId) {
+      setChallengeError('Please select an evidence item to challenge.');
+      return;
+    }
 
     setChallengeState('preparing');
     setChallengeError('');
 
     try {
-      const targetChainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '84532');
+      const targetChainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '8453');
       if (chainId && parseInt(chainId) !== targetChainId) {
         const switched = await switchChain(targetChainId);
         if (!switched) {
@@ -282,12 +294,8 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
       try {
         txHash = await sendUsdc(paymentRecipient, paymentAmount);
       } catch (err: any) {
-        // Fallback to simulation in development environments if user wishes
-        if (err.message?.includes('rejected') || err.code === 4001) {
-          throw err;
-        }
-        console.warn('Transaction execution failed, attempting mock simulation:', err);
-        txHash = '0xmock' + Array.from({ length: 60 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        console.error('USDC payment rejected or failed:', err);
+        throw new Error(err.message || 'USDC transfer failed. Please confirm the 2 USDC transaction in your wallet.');
       }
 
       setChallengeState('verifying');

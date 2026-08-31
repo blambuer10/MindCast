@@ -87,7 +87,7 @@ It MUST be under 280 characters, highly precise, and directly oppose the main th
       opposingThesis: counterThesis,
       paymentAmount: '2', // Challenge costs 2 USDC
       paymentToken: 'USDC',
-      paymentRecipient: process.env.PAYMENT_RECIPIENT_ADDRESS || '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2',
+      paymentRecipient: process.env.NEXT_PUBLIC_BONDING_VAULT_ADDRESS || process.env.BONDING_VAULT_ADDRESS || '0xf2f726598E96D85b9b08ece943590529555b867d',
       chainId,
     });
 
