@@ -44,6 +44,13 @@ export function getUserByWallet(walletAddress: string): User | undefined {
   return db.prepare('SELECT * FROM users WHERE wallet_address = ?').get(walletAddress.toLowerCase()) as User | undefined;
 }
 
+export function getUserById(userId: string): User | undefined {
+  const db = getDb();
+  const row = db.prepare('SELECT id, wallet_address as walletAddress, created_at as createdAt FROM users WHERE id = ?').get(userId) as Record<string, unknown> | undefined;
+  if (!row) return undefined;
+  return { id: row.id as string, walletAddress: row.walletAddress as string, createdAt: row.createdAt as string };
+}
+
 // ─── Ideas ───────────────────────────────────────────────────────────────
 
 export function createIdea(creatorId: string, content: string): Idea {

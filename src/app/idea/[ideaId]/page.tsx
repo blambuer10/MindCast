@@ -33,6 +33,7 @@ interface IdeaPageData {
     createdAt: string;
   } | null;
   userAllocation?: number;
+  creator?: { id?: string; walletAddress?: string } | null;
 }
 
 export default function IdeaPage({ params }: { params: Promise<{ ideaId: string }> }) {
@@ -438,6 +439,27 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                 {agent.lifecycleStatus}
               </span>
             )}
+            {data?.creator?.walletAddress && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                <span style={{ color: 'var(--muted)' }}>Creator:</span>
+                <a
+                  href={`/profile/${data.creator.walletAddress}`}
+                  title="View Profile"
+                  style={{ color: 'var(--ink)', textDecoration: 'underline', fontWeight: 600 }}
+                >
+                  {data.creator.walletAddress.slice(0, 6)}...{data.creator.walletAddress.slice(-4)}
+                </a>
+                <a
+                  href={`https://basescan.org/address/${data.creator.walletAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="View on BaseScan"
+                  style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 700 }}
+                >
+                  ↗
+                </a>
+              </div>
+            )}
             <div style={{ flex: 1 }}></div>
             <button
               className={`btn btn-sm ${following ? 'btn-secondary' : 'btn-primary'}`}
@@ -698,9 +720,50 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
 
                       {/* DEX Graduation Progress & Controls */}
                       {isDexActive ? (
-                        <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                          <span>✅ DEX Pool Active on Uniswap v3 &amp; Aerodrome</span>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>LP Burned 🔥</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                          <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#16a34a', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 600 }}>✅ DEX Pool Active on Uniswap v3 &amp; Aerodrome</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>LP Burned 🔥</span>
+                          </div>
+                          {/* Live DEX & LP Explorer Links */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <a
+                              href="https://dexscreener.com/base/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              📊 DexScreener ↗
+                            </a>
+                            <a
+                              href="https://www.dextools.io/app/en/base/pair-explorer/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              🛠️ DEXTools ↗
+                            </a>
+                            <a
+                              href="https://aerodrome.finance/swap"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              🦄 Aerodrome LP ↗
+                            </a>
+                            <a
+                              href={`https://basescan.org/address/${data?.creator?.walletAddress || '0x73877aBf37e7400393B538E3babD182949C1cA55'}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              🔍 BaseScan LP ↗
+                            </a>
+                          </div>
                         </div>
                       ) : (
                         <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', marginTop: '4px' }}>
@@ -714,7 +777,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                             <div style={{
                               width: agent.lifecycleStatus === 'PROVEN' ? '75%' : agent.lifecycleStatus === 'EMERGING' ? '50%' : '25%',
                               height: '100%',
-                              background: 'linear-gradient(90deg, var(--violet), #4ade80)'
+                              background: 'linear-gradient(90deg, var(--violet), #16a34a)'
                             }}></div>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
@@ -736,6 +799,36 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                             >
                               {isGraduating ? 'Graduating...' : 'Advance Stage / Test DEX ↗'}
                             </button>
+                          </div>
+                          {/* Quick Explorer Links */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border)', fontSize: '10px' }}>
+                            <span style={{ color: 'var(--muted)' }}>On-Chain Analytics:</span>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <a
+                                href="https://dexscreener.com/base/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 600 }}
+                              >
+                                DexScreener ↗
+                              </a>
+                              <a
+                                href="https://www.dextools.io/app/en/base/pair-explorer/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 600 }}
+                              >
+                                DEXTools ↗
+                              </a>
+                              <a
+                                href={`https://basescan.org/address/${data?.creator?.walletAddress || '0x73877aBf37e7400393B538E3babD182949C1cA55'}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 600 }}
+                              >
+                                BaseScan ↗
+                              </a>
+                            </div>
                           </div>
                         </div>
                       )}

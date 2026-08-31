@@ -115,6 +115,28 @@ export default function Header() {
                 {formatAddress(address)}
               </span>
             </a>
+            <a
+              href={`https://basescan.org/address/${address}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="View on BaseScan"
+              style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--violet)',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+                padding: '6px 8px',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                background: 'rgba(168,85,247,0.06)',
+                fontWeight: 600,
+              }}
+            >
+              BaseScan ↗
+            </a>
             <button
               className="primary-button"
               style={{ minHeight: '34px', padding: '0 12px', fontSize: '12px' }}

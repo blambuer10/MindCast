@@ -46,8 +46,12 @@ export async function GET(
       }
     }
 
+    const { getUserById } = await import('@/lib/database/queries');
+    const creator = idea.creatorId ? getUserById(idea.creatorId) : null;
+
     return NextResponse.json({
       idea,
+      creator: creator ? { id: creator.id, walletAddress: creator.walletAddress } : null,
       agent,
       mindState,
       predictions,
