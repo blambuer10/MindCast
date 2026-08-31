@@ -23,6 +23,8 @@ interface IdeaPageData {
     protocolAllocation: number;
     liquidityAllocation: number;
     marketStatus: string;
+    tokenAddress?: string | null;
+    poolAddress?: string | null;
     createdAt: string;
   } | null;
   mindFounder?: {
@@ -719,119 +721,153 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                       </div>
 
                       {/* DEX Graduation Progress & Controls */}
-                      {isDexActive ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                          <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#16a34a', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 600 }}>✅ DEX Pool Active on Uniswap v3 &amp; Aerodrome</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>LP Burned 🔥</span>
-                          </div>
-                          {/* Live DEX & LP Explorer Links */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                            <a
-                              href="https://dexscreener.com/base/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn btn-secondary btn-sm"
-                              style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            >
-                              📊 DexScreener ↗
-                            </a>
-                            <a
-                              href="https://www.dextools.io/app/en/base/pair-explorer/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn btn-secondary btn-sm"
-                              style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            >
-                              🛠️ DEXTools ↗
-                            </a>
-                            <a
-                              href="https://aerodrome.finance/swap"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn btn-secondary btn-sm"
-                              style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            >
-                              🦄 Aerodrome LP ↗
-                            </a>
-                            <a
-                              href={`https://basescan.org/address/${data?.creator?.walletAddress || '0x73877aBf37e7400393B538E3babD182949C1cA55'}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn btn-secondary btn-sm"
-                              style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            >
-                              🔍 BaseScan LP ↗
-                            </a>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', marginTop: '4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '6px' }}>
-                            <span style={{ color: 'var(--muted)' }}>DEX Graduation Progress</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--violet)', fontWeight: 600 }}>
-                              {agent.lifecycleStatus} ➔ DEX LISTED
-                            </span>
-                          </div>
-                          <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden', marginBottom: '8px' }}>
-                            <div style={{
-                              width: agent.lifecycleStatus === 'PROVEN' ? '75%' : agent.lifecycleStatus === 'EMERGING' ? '50%' : '25%',
-                              height: '100%',
-                              background: 'linear-gradient(90deg, var(--violet), #16a34a)'
-                            }}></div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '10px', color: 'var(--slate)' }}>Target: $50k MCAP &amp; Gates</span>
-                            <button
-                              type="button"
-                              onClick={() => handleGraduateLifecycle()}
-                              disabled={isGraduating}
-                              style={{
-                                background: 'rgba(168,85,247,0.15)',
-                                border: '1px solid var(--violet)',
-                                color: '#fff',
-                                fontSize: '10px',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontWeight: 600
-                              }}
-                            >
-                              {isGraduating ? 'Graduating...' : 'Advance Stage / Test DEX ↗'}
-                            </button>
-                          </div>
-                          {/* Quick Explorer Links */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border)', fontSize: '10px' }}>
-                            <span style={{ color: 'var(--muted)' }}>On-Chain Analytics:</span>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                      {(() => {
+                        const tokenAddress = data?.mindAsset?.tokenAddress || '0x9B3ded34d5357FC0187F322fb74960f667BBE490';
+                        return isDexActive ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                            <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#16a34a', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontWeight: 600 }}>🚀 Token Contract Deployed on Base Mainnet ($MIND)</span>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>LP Burned 🔥</span>
+                            </div>
+
+                            {/* Token Contract Address Banner */}
+                            <div style={{ background: 'var(--paper-2)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: 'var(--muted)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Token Contract:</span>
+                                <a
+                                  href={`https://basescan.org/token/${tokenAddress}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink)', fontWeight: 600, textDecoration: 'underline' }}
+                                  title="View on BaseScan"
+                                >
+                                  {tokenAddress.slice(0, 10)}...{tokenAddress.slice(-8)}
+                                </a>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (typeof navigator !== 'undefined') {
+                                    navigator.clipboard.writeText(tokenAddress);
+                                    alert('Token Contract Address copied: ' + tokenAddress);
+                                  }
+                                }}
+                                style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid var(--violet)', color: 'var(--violet)', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 600 }}
+                              >
+                                Copy Address 📋
+                              </button>
+                            </div>
+
+                            {/* Live DEX & LP Explorer Links */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                               <a
-                                href="https://dexscreener.com/base/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                                href={`https://dexscreener.com/base/${tokenAddress}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 600 }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
-                                DexScreener ↗
+                                📊 DexScreener ↗
                               </a>
                               <a
-                                href="https://www.dextools.io/app/en/base/pair-explorer/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                                href={`https://www.dextools.io/app/en/base/pair-explorer/${tokenAddress}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 600 }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
-                                DEXTools ↗
+                                🛠️ DEXTools ↗
                               </a>
                               <a
-                                href={`https://basescan.org/address/${data?.creator?.walletAddress || '0x73877aBf37e7400393B538E3babD182949C1cA55'}`}
+                                href={`https://aerodrome.finance/swap?from=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913&to=${tokenAddress}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 600 }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
-                                BaseScan ↗
+                                🦄 Aerodrome LP ↗
+                              </a>
+                              <a
+                                href={`https://basescan.org/token/${tokenAddress}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                🔍 BaseScan Token ↗
                               </a>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', marginTop: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '6px' }}>
+                              <span style={{ color: 'var(--muted)' }}>DEX Graduation Progress</span>
+                              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--violet)', fontWeight: 600 }}>
+                                {agent.lifecycleStatus} ➔ DEX LISTED
+                              </span>
+                            </div>
+                            <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden', marginBottom: '8px' }}>
+                              <div style={{
+                                width: agent.lifecycleStatus === 'PROVEN' ? '75%' : agent.lifecycleStatus === 'EMERGING' ? '50%' : '25%',
+                                height: '100%',
+                                background: 'linear-gradient(90deg, var(--violet), #16a34a)'
+                              }}></div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '10px', color: 'var(--slate)' }}>Target: $50k MCAP &amp; Gates</span>
+                              <button
+                                type="button"
+                                onClick={() => handleGraduateLifecycle()}
+                                disabled={isGraduating}
+                                style={{
+                                  background: 'rgba(168,85,247,0.15)',
+                                  border: '1px solid var(--violet)',
+                                  color: '#fff',
+                                  fontSize: '10px',
+                                  padding: '4px 8px',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontWeight: 600
+                                }}
+                              >
+                                {isGraduating ? 'Graduating...' : 'Advance Stage / Test DEX ↗'}
+                              </button>
+                            </div>
+                            {/* Token Contract & Analytics Links */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border)', fontSize: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span style={{ color: 'var(--muted)' }}>Contract:</span>
+                                <a
+                                  href={`https://basescan.org/token/${tokenAddress}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ fontFamily: 'var(--font-mono)', color: 'var(--violet)', fontWeight: 600 }}
+                                >
+                                  {tokenAddress.slice(0, 6)}...{tokenAddress.slice(-4)} ↗
+                                </a>
+                              </div>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <a
+                                  href={`https://dexscreener.com/base/${tokenAddress}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 600 }}
+                                >
+                                  DexScreener ↗
+                                </a>
+                                <a
+                                  href={`https://www.dextools.io/app/en/base/pair-explorer/${tokenAddress}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 600 }}
+                                >
+                                  DEXTools ↗
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })()}

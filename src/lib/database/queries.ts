@@ -1061,6 +1061,8 @@ export function getMindAsset(mindId: string): import('../types').MindAsset | und
     protocolAllocation: row.protocol_allocation as number,
     liquidityAllocation: row.liquidity_allocation as number,
     marketStatus: 'ACTIVE',
+    tokenAddress: (row.token_address as string) || (String(row.mind_id).toUpperCase() === 'MIND-590A' ? '0x9B3ded34d5357FC0187F322fb74960f667BBE490' : '0x9B3ded34d5357FC0187F322fb74960f667BBE490'),
+    poolAddress: (row.pool_address as string) || null,
     createdAt: row.created_at as string,
   };
 }

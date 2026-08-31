@@ -434,6 +434,8 @@ export interface MindAsset {
   protocolAllocation: number;
   liquidityAllocation: number;
   marketStatus: string;
+  tokenAddress?: string | null;
+  poolAddress?: string | null;
   createdAt: string;
 }
 
