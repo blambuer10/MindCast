@@ -97,6 +97,14 @@ export async function POST(
         AgentEventType.LIFECYCLE_CHANGED,
         `🎓 Mind graduated internal bonding curve! DEX pool initialized on Uniswap v3 & Aerodrome on Base. LP tokens locked permanently.`
       );
+
+      // Trigger On-Chain Pump.fun style vault graduation to DEX
+      try {
+        const { triggerVaultGraduation } = await import('@/lib/blockchain/vault');
+        await triggerVaultGraduation(agent.id);
+      } catch (vaultErr) {
+        console.warn('[Lifecycle] On-chain vault graduation error (non-fatal):', vaultErr);
+      }
     }
 
     return NextResponse.json({

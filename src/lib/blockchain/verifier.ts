@@ -28,6 +28,8 @@ export async function verifyOnChainPayment(
 
     // Supported recipient addresses
     const validRecipients = [
+      (process.env.BONDING_VAULT_ADDRESS || '0xf2f726598E96D85b9b08ece943590529555b867d').toLowerCase(),
+      '0xf2f726598E96D85b9b08ece943590529555b867d'.toLowerCase(), // MindBondingCurveVault contract on Base Mainnet
       (process.env.PAYMENT_RECIPIENT_ADDRESS || '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2').toLowerCase(),
       '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2'.toLowerCase(),
       '0x73877aBf37e7400393B538E3babD182949C1cA55'.toLowerCase(),
