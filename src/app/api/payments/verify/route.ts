@@ -121,10 +121,16 @@ export async function POST(request: NextRequest) {
     // ─── Publish the Idea ───
     publishIdea(idea.id, agent.id);
 
+    // ─── Initialize Unique Token Asset ───
+    const { createMindAsset } = await import('@/lib/database/queries');
+    createMindAsset(agent.id, 15.0, 70.0, 10.0, 5.0, idea.tokenName || undefined, idea.tokenTicker || undefined);
+
     return NextResponse.json({
       status: PaymentStatus.CONFIRMED,
       ideaId: idea.id,
       agentId: agent.id,
+      tokenName: idea.tokenName,
+      tokenTicker: idea.tokenTicker,
     });
 
   } catch (error) {

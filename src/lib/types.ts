@@ -79,6 +79,8 @@ export interface Idea {
   content: string;
   agentId: string | null;
   status: IdeaStatus;
+  tokenName?: string | null;
+  tokenTicker?: string | null;
   createdAt: string;
   publishedAt: string | null;
 }
@@ -249,6 +251,8 @@ export interface MindMemory {
 export interface IdeaPrepareRequest {
   content: string;
   walletAddress: string;
+  tokenName?: string;
+  tokenTicker?: string;
 }
 
 export interface IdeaPrepareResponse {
@@ -436,6 +440,8 @@ export interface MindAsset {
   marketStatus: string;
   tokenAddress?: string | null;
   poolAddress?: string | null;
+  tokenName?: string | null;
+  tokenTicker?: string | null;
   createdAt: string;
 }
 

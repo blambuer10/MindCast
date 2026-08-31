@@ -42,7 +42,7 @@ function moderateContent(content: string): { ok: boolean; reason?: string } {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { content, walletAddress } = body;
+    const { content, walletAddress, tokenName, tokenTicker } = body;
 
     if (!content || !walletAddress) {
       return NextResponse.json(
@@ -74,17 +74,19 @@ export async function POST(request: NextRequest) {
     // Find or create user
     const user = findOrCreateUser(walletAddress);
 
-    // Create idea in PENDING state
-    const idea = createIdea(user.id, content.trim());
+    // Create idea in PENDING state with unique token identity
+    const idea = createIdea(user.id, content.trim(), tokenName, tokenTicker);
 
     // Track analytics event
     const { trackEvent } = await import('@/lib/analytics/tracker');
-    trackEvent('idea_submitted', user.id, { contentLength: content.trim().length });
+    trackEvent('idea_submitted', user.id, { contentLength: content.trim().length, tokenTicker: idea.tokenTicker });
 
     // Return payment instructions
     const chainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '8453');
     return NextResponse.json({
       ideaId: idea.id,
+      tokenName: idea.tokenName,
+      tokenTicker: idea.tokenTicker,
       paymentAmount: process.env.PAYMENT_AMOUNT || '1',
       paymentToken: 'USDC',
       paymentRecipient: process.env.NEXT_PUBLIC_PAYMENT_RECIPIENT_ADDRESS || process.env.PAYMENT_RECIPIENT_ADDRESS || '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2',

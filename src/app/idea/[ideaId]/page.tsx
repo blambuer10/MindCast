@@ -25,6 +25,8 @@ interface IdeaPageData {
     marketStatus: string;
     tokenAddress?: string | null;
     poolAddress?: string | null;
+    tokenName?: string | null;
+    tokenTicker?: string | null;
     createdAt: string;
   } | null;
   mindFounder?: {
@@ -633,17 +635,27 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                   const userSharesCount = userAlloc * 1000;
                   const userPositionValue = userSharesCount * sharePrice;
                   const isDexActive = agent.lifecycleStatus === 'MARKET_ACTIVE';
+                  const tokenTicker = data?.mindAsset?.tokenTicker || data?.idea?.tokenTicker || (String(agent.id).toUpperCase() === 'MIND-590A' ? 'ACC' : 'MIND');
+                  const tokenName = data?.mindAsset?.tokenName || data?.idea?.tokenName || (String(agent.id).toUpperCase() === 'MIND-590A' ? 'Autonomous Cognitive Capital' : 'Mind Share');
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       {/* Title & Price Row */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--ink)' }}>
-                            {agent.id}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--ink)' }}>
+                              ${tokenTicker}
+                            </span>
+                            <span style={{ fontSize: '11px', color: 'var(--slate)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>
+                              {agent.id}
+                            </span>
                           </div>
-                          <div style={{ fontSize: 'var(--text-xs)', color: isDexActive ? '#16a34a' : 'var(--violet)', fontWeight: 600 }}>
-                            {isDexActive ? '🚀 DEX LISTED (Uniswap & Aerodrome)' : `⚡ BONDING CURVE (${agent.lifecycleStatus})`}
+                          <div style={{ fontSize: '12px', color: 'var(--ink)', fontWeight: 600, marginTop: '2px' }}>
+                            {tokenName}
+                          </div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: isDexActive ? '#16a34a' : 'var(--violet)', fontWeight: 600, marginTop: '2px' }}>
+                            {isDexActive ? '🚀 DEX LISTED (Uniswap v3)' : `⚡ BONDING CURVE (${agent.lifecycleStatus})`}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
@@ -687,7 +699,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                         <div>
                           <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Your Position (15% Founder Share)</div>
                           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--violet)' }}>
-                            {userSharesCount.toLocaleString()} MIND
+                            {userSharesCount.toLocaleString()} {tokenTicker}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: '#16a34a' }}>
@@ -708,7 +720,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                             setShowTradeModal(true);
                           }}
                         >
-                          Buy Shares
+                          Buy {tokenTicker} Shares
                         </button>
                         <button 
                           className="btn btn-secondary" 
@@ -721,7 +733,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                             setShowTradeModal(true);
                           }}
                         >
-                          Sell Shares
+                          Sell {tokenTicker} Shares
                         </button>
                       </div>
 
@@ -732,7 +744,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                         return isDexActive ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
                             <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#16a34a', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontWeight: 600 }}>🚀 Token & Uniswap v3 Pool Active on Base ($MIND)</span>
+                              <span style={{ fontWeight: 600 }}>🚀 Token &amp; Uniswap v3 Pool Active on Base (${tokenTicker})</span>
                               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>LP Burned 🔥</span>
                             </div>
 
@@ -1593,15 +1605,26 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
           <div className="challenge-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
             <button className="challenge-modal-close" onClick={() => setShowTradeModal(false)}>×</button>
 
-            <div className="challenge-modal-icon" style={{ backgroundColor: tradeType === 'buy' ? 'oklch(82% 0.19 121 / 0.12)' : 'oklch(68% 0.19 28 / 0.12)' }}>
-              {tradeType === 'buy' ? '📈' : '📉'}
-            </div>
-            <h3>{tradeType === 'buy' ? 'Buy Zihin Shares' : 'Sell Zihin Shares'}</h3>
-            <p style={{ marginBottom: '16px' }}>
-              {tradeType === 'buy' 
-                ? 'Acquire Zihin Shares to increase your founder allocation and influence.' 
-                : 'Sell Zihin Shares back to the liquidity pool in exchange for USDC.'}
-            </p>
+            {(() => {
+              const tokenTicker = data?.mindAsset?.tokenTicker || data?.idea?.tokenTicker || (String(agent?.id).toUpperCase() === 'MIND-590A' ? 'ACC' : 'MIND');
+              const tokenName = data?.mindAsset?.tokenName || data?.idea?.tokenName || (String(agent?.id).toUpperCase() === 'MIND-590A' ? 'Autonomous Cognitive Capital' : 'Mind Share');
+              return (
+                <>
+                  <div className="challenge-modal-icon" style={{ backgroundColor: tradeType === 'buy' ? 'oklch(82% 0.19 121 / 0.12)' : 'oklch(68% 0.19 28 / 0.12)' }}>
+                    {tradeType === 'buy' ? '📈' : '📉'}
+                  </div>
+                  <h3>{tradeType === 'buy' ? `Buy $${tokenTicker} Shares` : `Sell $${tokenTicker} Shares`}</h3>
+                  <div style={{ fontSize: '11px', color: 'var(--violet)', fontWeight: 600, marginBottom: '6px' }}>
+                    🪙 {tokenName}
+                  </div>
+                  <p style={{ marginBottom: '16px' }}>
+                    {tradeType === 'buy' 
+                      ? `Acquire $${tokenTicker} shares on the Base bonding curve to increase your position and backing.` 
+                      : `Sell $${tokenTicker} shares back to the bonding curve vault in exchange for USDC.`}
+                  </p>
+                </>
+              );
+            })()}
 
             <div style={{ marginBottom: '20px' }}>
               <label className="label" style={{ display: 'block', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: 'var(--muted)' }}>
@@ -1612,7 +1635,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                   type="number" 
                   min="0.1" 
                   max="100" 
-                  step="0.1"
+                  step="0.1" 
                   value={tradePercentage}
                   onChange={e => setTradePercentage(e.target.value)}
                   style={{
@@ -1632,6 +1655,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
             </div>
 
             {(() => {
+              const tokenTicker = data?.mindAsset?.tokenTicker || data?.idea?.tokenTicker || (String(agent?.id).toUpperCase() === 'MIND-590A' ? 'ACC' : 'MIND');
               const parsedPct = parseFloat(tradePercentage) || 0;
               const repScore = Math.min(100, Math.max(10, Math.round(
                 (agent!.credibility * 0.4) + 
@@ -1658,7 +1682,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--muted)' }}>Quantity:</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{sharesQty.toLocaleString()} MIND</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{sharesQty.toLocaleString()} {tokenTicker}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--muted)' }}>Share Price:</span>

@@ -44,7 +44,12 @@ export function getDb(): Database.Database {
   try { db.exec(`UPDATE mind_assets SET market_status = 'ACTIVE';`); } catch (_) {}
   try { db.exec(`ALTER TABLE mind_assets ADD COLUMN token_address TEXT;`); } catch (_) {}
   try { db.exec(`ALTER TABLE mind_assets ADD COLUMN pool_address TEXT;`); } catch (_) {}
-  try { db.exec(`UPDATE mind_assets SET token_address = '0x2cD4a125eA8d1f28dC0fdE1f241AAd2C96817B67', pool_address = '0xdFeeeC136Aa4808ffC8c1CE74dDE9A2Be01A7755' WHERE UPPER(mind_id) = 'MIND-590A';`); } catch (_) {}
+  try { db.exec(`ALTER TABLE mind_assets ADD COLUMN token_name TEXT;`); } catch (_) {}
+  try { db.exec(`ALTER TABLE mind_assets ADD COLUMN token_ticker TEXT;`); } catch (_) {}
+  try { db.exec(`ALTER TABLE ideas ADD COLUMN token_name TEXT;`); } catch (_) {}
+  try { db.exec(`ALTER TABLE ideas ADD COLUMN token_ticker TEXT;`); } catch (_) {}
+  try { db.exec(`UPDATE mind_assets SET token_address = '0x2cD4a125eA8d1f28dC0fdE1f241AAd2C96817B67', pool_address = '0xdFeeeC136Aa4808ffC8c1CE74dDE9A2Be01A7755', token_name = 'Autonomous Cognitive Capital', token_ticker = 'ACC' WHERE UPPER(mind_id) = 'MIND-590A';`); } catch (_) {}
+  try { db.exec(`UPDATE ideas SET token_name = 'Autonomous Cognitive Capital', token_ticker = 'ACC' WHERE id = '63154d39-7165-4219-adb0-27950a4b32b0';`); } catch (_) {}
 
   // Dynamically add upgraded evidence columns to existing databases
   try { db.exec(`ALTER TABLE evidence ADD COLUMN claim TEXT NOT NULL DEFAULT '';`); } catch (_) {}

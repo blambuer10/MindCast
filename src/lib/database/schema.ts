@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS ideas (
   content TEXT NOT NULL,
   agent_id TEXT,
   status TEXT NOT NULL DEFAULT 'PENDING',
+  token_name TEXT,
+  token_ticker TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   published_at TEXT,
   FOREIGN KEY (creator_id) REFERENCES users(id)
@@ -243,6 +245,10 @@ CREATE TABLE IF NOT EXISTS mind_assets (
   protocol_allocation REAL NOT NULL DEFAULT 10.0,
   liquidity_allocation REAL NOT NULL DEFAULT 5.0,
   market_status TEXT NOT NULL DEFAULT 'INACTIVE',
+  token_address TEXT,
+  pool_address TEXT,
+  token_name TEXT,
+  token_ticker TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (mind_id) REFERENCES agents(id)
 );

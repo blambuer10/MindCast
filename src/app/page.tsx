@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import { useWallet } from '@/hooks/useWallet';
 import type { IdeaWithMind } from '@/lib/types';
+import { generateTokenMetadata } from '@/lib/utils/token-meta';
 
 declare global {
   interface Window {
@@ -16,6 +17,9 @@ const MAX_CHARS = 280;
 
 export default function LandingPage() {
   const [idea, setIdea] = useState('');
+  const [tokenName, setTokenName] = useState('');
+  const [tokenTicker, setTokenTicker] = useState('');
+  const [isCustomToken, setIsCustomToken] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [paymentState, setPaymentState] = useState<'idle' | 'paying' | 'confirming' | 'alive' | 'error'>('idle');
@@ -77,6 +81,8 @@ export default function LandingPage() {
         body: JSON.stringify({
           content: idea.trim(),
           walletAddress: address,
+          tokenName: tokenName.trim() || undefined,
+          tokenTicker: tokenTicker.trim().toUpperCase().replace('$', '') || undefined,
         }),
       });
 
@@ -87,6 +93,8 @@ export default function LandingPage() {
 
       const prepData = await prepRes.json();
       setCurrentIdeaId(prepData.ideaId);
+      if (prepData.tokenName) setTokenName(prepData.tokenName);
+      if (prepData.tokenTicker) setTokenTicker(prepData.tokenTicker);
       setPaymentRecipient(prepData.paymentRecipient);
       setPaymentAmount(prepData.paymentAmount);
       setShowPayment(true);
@@ -98,7 +106,7 @@ export default function LandingPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [idea, isValid, isSubmitting, isConnected, address, switchChain, chainId]);
+  }, [idea, isValid, isSubmitting, isConnected, address, switchChain, chainId, tokenName, tokenTicker]);
 
   const handleConfirmPayment = async () => {
     if (!currentIdeaId || !address) return;
@@ -171,8 +179,22 @@ export default function LandingPage() {
     setErrorMessage('');
   };
 
+  const handleIdeaChange = (text: string) => {
+    const trimmed = text.slice(0, MAX_CHARS + 10);
+    setIdea(trimmed);
+    if (!isCustomToken && trimmed.trim().length > 3) {
+      const meta = generateTokenMetadata(trimmed);
+      setTokenName(meta.tokenName);
+      setTokenTicker(meta.tokenTicker);
+    }
+  };
+
   const selectExample = (text: string) => {
     setIdea(text);
+    const meta = generateTokenMetadata(text);
+    setTokenName(meta.tokenName);
+    setTokenTicker(meta.tokenTicker);
+    setIsCustomToken(false);
   };
 
   const scrollToHero = () => {
@@ -232,18 +254,94 @@ export default function LandingPage() {
                     maxLength={280}
                     placeholder="Write a belief worth testing..."
                     value={idea}
-                    onChange={(e) => setIdea(e.target.value.slice(0, MAX_CHARS + 10))}
+                    onChange={(e) => handleIdeaChange(e.target.value)}
                     disabled={isSubmitting}
                     aria-describedby="hint"
                   />
 
+                  {/* Autonomous Token Identity (Pump.fun style) */}
+                  {idea.trim().length > 4 && (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      background: 'rgba(168, 85, 247, 0.06)',
+                      border: '1px solid rgba(168, 85, 247, 0.25)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      textAlign: 'left',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--violet)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          🪙 Autonomous Token Identity
+                        </span>
+                        <span style={{ fontSize: '10px', color: 'var(--slate)' }}>
+                          Auto-generated · Fully Editable
+                        </span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
+                        <div>
+                          <label style={{ fontSize: '10px', color: 'var(--slate)', display: 'block', marginBottom: '2px', fontWeight: 600 }}>
+                            Token Name
+                          </label>
+                          <input
+                            type="text"
+                            value={tokenName}
+                            onChange={(e) => {
+                              setTokenName(e.target.value);
+                              setIsCustomToken(true);
+                            }}
+                            placeholder="e.g. Autonomous Cognitive Capital"
+                            style={{
+                              width: '100%',
+                              background: 'rgba(0,0,0,0.5)',
+                              border: '1px solid var(--border)',
+                              borderRadius: '6px',
+                              padding: '6px 10px',
+                              color: 'var(--ink)',
+                              fontSize: '12px',
+                              fontFamily: 'inherit',
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '10px', color: 'var(--slate)', display: 'block', marginBottom: '2px', fontWeight: 600 }}>
+                            Ticker Symbol
+                          </label>
+                          <input
+                            type="text"
+                            value={tokenTicker ? (tokenTicker.startsWith('$') ? tokenTicker : `$${tokenTicker}`) : ''}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 5);
+                              setTokenTicker(raw);
+                              setIsCustomToken(true);
+                            }}
+                            placeholder="$ACC"
+                            style={{
+                              width: '100%',
+                              background: 'rgba(0,0,0,0.5)',
+                              border: '1px solid rgba(74,222,128,0.3)',
+                              borderRadius: '6px',
+                              padding: '6px 10px',
+                              color: '#4ade80',
+                              fontWeight: 700,
+                              fontSize: '12px',
+                              fontFamily: 'var(--font-mono)',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="prompt-footer">
                     <span className="price">
-                      <strong>1 USDC</strong> to awaken a Mind
+                      <strong>1 USDC</strong> to awaken Mind &amp; Mint Token
                     </span>
 
                     <button className="primary-button" type="submit" disabled={isSubmitting || isConnecting || (isConnected && !isValid)}>
-                      {isSubmitting ? 'Processing...' : isConnecting ? 'Connecting...' : isConnected ? 'Cast Thesis ↗' : 'Connect wallet to cast ↗'}
+                      {isSubmitting ? 'Processing...' : isConnecting ? 'Connecting...' : isConnected ? 'Cast Thesis & Mint ↗' : 'Connect wallet to cast ↗'}
                     </button>
                   </div>
                 </div>
@@ -633,16 +731,30 @@ export default function LandingPage() {
                     >
                       {/* Top Header */}
                       <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                          <span style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: '11px',
-                            color: 'var(--violet)',
-                            fontWeight: 600,
-                            letterSpacing: '0.05em',
-                          }}>
-                            {item.agent?.id || 'MIND / LIVE'}
-                          </span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '11px',
+                              color: 'var(--violet)',
+                              fontWeight: 600,
+                              letterSpacing: '0.05em',
+                            }}>
+                              {item.agent?.id || 'MIND / LIVE'}
+                            </span>
+                            <span style={{
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-mono)',
+                              background: 'rgba(34,197,94,0.12)',
+                              color: '#4ade80',
+                              border: '1px solid rgba(34,197,94,0.25)',
+                            }}>
+                              ${item.tokenTicker || (item.agent?.id === 'MIND-590A' ? 'ACC' : 'MIND')}
+                            </span>
+                          </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{
@@ -658,6 +770,11 @@ export default function LandingPage() {
                               {isDex ? '🚀 DEX READY' : '🌱 ' + status}
                             </span>
                           </div>
+                        </div>
+
+                        {/* Token Name Subtitle */}
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted)', marginBottom: '8px' }}>
+                          🪙 {item.tokenName || (item.agent?.id === 'MIND-590A' ? 'Autonomous Cognitive Capital' : 'Mind Share')}
                         </div>
 
                         {/* Thesis Content */}
@@ -831,19 +948,37 @@ export default function LandingPage() {
             {paymentState === 'paying' && (
               <div style={{ textAlign: 'center' }}>
                 <div className="modal-header">
-                  <h3 className="modal-title">Bring this idea to life.</h3>
+                  <h3 className="modal-title">Awaken Mind &amp; Mint Token</h3>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    margin: '10px auto 0',
+                    padding: '4px 12px',
+                    borderRadius: '20px',
+                    background: 'rgba(168,85,247,0.12)',
+                    border: '1px solid rgba(168,85,247,0.3)',
+                    color: '#c084fc',
+                    fontSize: '12px',
+                    fontWeight: 600
+                  }}>
+                    <span>🪙 Token:</span>
+                    <strong style={{ color: '#4ade80' }}>{tokenTicker ? (tokenTicker.startsWith('$') ? tokenTicker : `$${tokenTicker}`) : '$ACC'}</strong>
+                    <span>·</span>
+                    <span style={{ color: 'var(--ink)' }}>{tokenName || 'Autonomous Cognitive Capital'}</span>
+                  </div>
                 </div>
                 <div style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: '32px',
                   fontWeight: 700,
                   color: 'var(--ink)',
-                  margin: '24px 0 8px',
+                  margin: '20px 0 8px',
                 }}>
                   {paymentAmount} USDC
                 </div>
                 <p style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '24px' }}>
-                  One-time publishing fee
+                  Base Mainnet on-chain creation &amp; bonding curve stake
                 </p>
                 <button 
                   className="btn btn-primary btn-lg" 
@@ -851,7 +986,7 @@ export default function LandingPage() {
                   id="confirm-payment-btn"
                   onClick={handleConfirmPayment}
                 >
-                  CONFIRM & CREATE
+                  CONFIRM &amp; MINT ON BASE
                 </button>
               </div>
             )}

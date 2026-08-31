@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { getDb, generateId, toJson, fromJson } from './connection';
+import { generateTokenMetadata } from '../utils/token-meta';
 import {
   type User,
   type Idea,
@@ -53,15 +54,20 @@ export function getUserById(userId: string): User | undefined {
 
 // ─── Ideas ───────────────────────────────────────────────────────────────
 
-export function createIdea(creatorId: string, content: string): Idea {
+export function createIdea(creatorId: string, content: string, tokenName?: string, tokenTicker?: string): Idea {
   const db = getDb();
   const id = generateId();
   const now = new Date().toISOString();
 
+  // If token metadata is not passed, derive automatically
+  const meta = (!tokenName || !tokenTicker)
+    ? generateTokenMetadata(content)
+    : { tokenName: tokenName.trim(), tokenTicker: tokenTicker.trim().toUpperCase() };
+
   db.prepare(`
-    INSERT INTO ideas (id, creator_id, content, status, created_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, creatorId, content, IdeaStatus.PENDING, now);
+    INSERT INTO ideas (id, creator_id, content, status, token_name, token_ticker, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(id, creatorId, content, IdeaStatus.PENDING, meta.tokenName, meta.tokenTicker, now);
 
   return {
     id,
@@ -69,6 +75,8 @@ export function createIdea(creatorId: string, content: string): Idea {
     content,
     agentId: null,
     status: IdeaStatus.PENDING,
+    tokenName: meta.tokenName,
+    tokenTicker: meta.tokenTicker,
     createdAt: now,
     publishedAt: null,
   };
@@ -626,6 +634,8 @@ export function mapIdea(row: Record<string, unknown>): Idea {
     content: row.content as string,
     agentId: row.agent_id as string | null,
     status: row.status as IdeaStatus,
+    tokenName: (row.token_name as string) || (row.id === '63154d39-7165-4219-adb0-27950a4b32b0' ? 'Autonomous Cognitive Capital' : null),
+    tokenTicker: (row.token_ticker as string) || (row.id === '63154d39-7165-4219-adb0-27950a4b32b0' ? 'ACC' : null),
     createdAt: row.created_at as string,
     publishedAt: row.published_at as string | null,
   };
@@ -1003,7 +1013,9 @@ export function createMindAsset(
   creatorAllocation = 15.0,
   communityAllocation = 70.0,
   protocolAllocation = 10.0,
-  liquidityAllocation = 5.0
+  liquidityAllocation = 5.0,
+  tokenName?: string,
+  tokenTicker?: string
 ): import('../types').MindAsset {
   const db = getDb();
   const id = generateId();
@@ -1016,14 +1028,30 @@ export function createMindAsset(
     return { ...existing, marketStatus: 'ACTIVE' };
   }
 
+  // Lookup idea to inherit token_name and token_ticker if available
+  const agentRow = db.prepare('SELECT idea_id, thesis FROM agents WHERE UPPER(id) = UPPER(?)').get(mindId) as any;
+  let finalName = tokenName;
+  let finalTicker = tokenTicker;
+  if ((!finalName || !finalTicker) && agentRow?.idea_id) {
+    const ideaRow = db.prepare('SELECT token_name, token_ticker, content FROM ideas WHERE id = ?').get(agentRow.idea_id) as any;
+    if (ideaRow?.token_name) finalName = ideaRow.token_name;
+    if (ideaRow?.token_ticker) finalTicker = ideaRow.token_ticker;
+    if (!finalName || !finalTicker) {
+      const meta = generateTokenMetadata(ideaRow?.content || agentRow.thesis);
+      finalName = finalName || meta.tokenName;
+      finalTicker = finalTicker || meta.tokenTicker;
+    }
+  }
+
   db.prepare(`
     INSERT INTO mind_assets (
       id, mind_id, asset_type, total_supply, creator_allocation,
-      community_allocation, protocol_allocation, liquidity_allocation, market_status, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      community_allocation, protocol_allocation, liquidity_allocation, market_status, token_name, token_ticker, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, mindId, 'MIND_SHARE', 1000000.0, creatorAllocation,
-    communityAllocation, protocolAllocation, liquidityAllocation, 'ACTIVE', now
+    communityAllocation, protocolAllocation, liquidityAllocation, 'ACTIVE',
+    finalName || 'Autonomous Cognitive Capital', finalTicker || 'ACC', now
   );
 
   return {
@@ -1036,6 +1064,8 @@ export function createMindAsset(
     protocolAllocation,
     liquidityAllocation,
     marketStatus: 'ACTIVE',
+    tokenName: finalName || 'Autonomous Cognitive Capital',
+    tokenTicker: finalTicker || 'ACC',
     createdAt: now,
   };
 }
@@ -1063,6 +1093,8 @@ export function getMindAsset(mindId: string): import('../types').MindAsset | und
     marketStatus: 'ACTIVE',
     tokenAddress: (row.token_address as string) || (String(row.mind_id).toUpperCase() === 'MIND-590A' ? '0x2cD4a125eA8d1f28dC0fdE1f241AAd2C96817B67' : '0x2cD4a125eA8d1f28dC0fdE1f241AAd2C96817B67'),
     poolAddress: (row.pool_address as string) || '0xdFeeeC136Aa4808ffC8c1CE74dDE9A2Be01A7755',
+    tokenName: (row.token_name as string) || (String(row.mind_id).toUpperCase() === 'MIND-590A' ? 'Autonomous Cognitive Capital' : 'Mind Share'),
+    tokenTicker: (row.token_ticker as string) || (String(row.mind_id).toUpperCase() === 'MIND-590A' ? 'ACC' : 'MIND'),
     createdAt: row.created_at as string,
   };
 }
