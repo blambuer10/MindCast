@@ -82,21 +82,16 @@ export async function POST(request: NextRequest) {
     const { verifyOnChainPayment } = await import('@/lib/blockchain/verifier');
     let isVerified = false;
     let verificationError = '';
-
-    if (txHash === '0xmockedtxhash' || txHash.startsWith('0xmock')) {
-      isVerified = true;
-    } else {
-      if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
-        updatePaymentStatus(payment.id, PaymentStatus.FAILED);
-        return NextResponse.json(
-          { error: 'Invalid transaction hash format' },
-          { status: 400 }
-        );
-      }
-      const verResult = await verifyOnChainPayment(txHash);
-      isVerified = verResult.success;
-      verificationError = verResult.error || '';
+    if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+      updatePaymentStatus(payment.id, PaymentStatus.FAILED);
+      return NextResponse.json(
+        { error: 'Invalid transaction hash format' },
+        { status: 400 }
+      );
     }
+    const verResult = await verifyOnChainPayment(txHash);
+    isVerified = verResult.success;
+    verificationError = verResult.error || '';
 
     if (!isVerified) {
       updatePaymentStatus(payment.id, PaymentStatus.FAILED);

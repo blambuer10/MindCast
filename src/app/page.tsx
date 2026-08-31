@@ -163,38 +163,6 @@ export default function LandingPage() {
     }
   };
 
-  const handleSimulatePayment = async () => {
-    if (!currentIdeaId || !address) return;
-
-    setPaymentState('confirming');
-    setErrorMessage('');
-
-    try {
-      const mockTxHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      
-      const verifyRes = await fetch('/api/payments/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ideaId: currentIdeaId,
-          txHash: mockTxHash,
-          chain: 'base',
-          walletAddress: address,
-        }),
-      });
-
-      if (!verifyRes.ok) {
-        const err = await verifyRes.json();
-        throw new Error(err.error || 'Payment verification failed.');
-      }
-
-      setPaymentState('alive');
-    } catch (err: any) {
-      setPaymentState('error');
-      setErrorMessage(err.message || 'Simulation failed.');
-    }
-  };
-
   const resetFlow = () => {
     setShowPayment(false);
     setPaymentState('idle');
@@ -884,13 +852,6 @@ export default function LandingPage() {
                   onClick={handleConfirmPayment}
                 >
                   CONFIRM & CREATE
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  style={{ width: '100%', marginTop: '12px', color: 'var(--violet)' }}
-                  onClick={handleSimulatePayment}
-                >
-                  SIMULATE PAYMENT (DEV MODE)
                 </button>
               </div>
             )}

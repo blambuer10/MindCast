@@ -181,11 +181,8 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
         try {
           txHash = await sendUsdc(recipient, costAmount);
         } catch (err: any) {
-          if (err.message?.includes('rejected') || err.code === 4001) {
-            throw err;
-          }
-          console.warn('Transaction execution failed, attempting mock simulation:', err);
-          txHash = '0xmock' + Array.from({ length: 60 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+          console.error('USDC Transfer failed:', err);
+          throw new Error(err.message || 'USDC transfer failed. Please approve the transaction in your wallet.');
         }
 
         setTradeState('verifying');

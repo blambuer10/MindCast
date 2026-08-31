@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       ideaId: idea.id,
       paymentAmount: process.env.PAYMENT_AMOUNT || '1',
       paymentToken: 'USDC',
-      paymentRecipient: process.env.PAYMENT_RECIPIENT_ADDRESS || '0x0000000000000000000000000000000000000000',
+      paymentRecipient: process.env.NEXT_PUBLIC_PAYMENT_RECIPIENT_ADDRESS || process.env.PAYMENT_RECIPIENT_ADDRESS || '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2',
       chainId,
     });
 

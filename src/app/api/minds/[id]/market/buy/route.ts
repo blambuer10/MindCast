@@ -54,21 +54,13 @@ export async function POST(
     const priceDetails = calculateTradePrice(parseFloat(percentage), agent, followerCount);
     const expectedAmount = priceDetails.netAmount;
 
-    // Verify payment on-chain
-    let isVerified = false;
-    let verificationError = '';
-
-    if (txHash.startsWith('0xmock')) {
-      isVerified = true;
-    } else {
-      // Validate real tx hash format
-      if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
-        return NextResponse.json({ error: 'Invalid transaction hash format' }, { status: 400 });
-      }
-      const verResult = await verifyOnChainPayment(txHash, expectedAmount);
-      isVerified = verResult.success;
-      verificationError = verResult.error || '';
+    // Validate real tx hash format
+    if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+      return NextResponse.json({ error: 'Invalid transaction hash format' }, { status: 400 });
     }
+    const verResult = await verifyOnChainPayment(txHash, expectedAmount);
+    const isVerified = verResult.success;
+    const verificationError = verResult.error || '';
 
     if (!isVerified) {
       return NextResponse.json(
