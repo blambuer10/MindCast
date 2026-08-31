@@ -30,8 +30,14 @@ export function findOrCreateUser(walletAddress: string): User {
   const db = getDb();
   const normalized = walletAddress.toLowerCase();
 
-  const existing = db.prepare('SELECT * FROM users WHERE wallet_address = ?').get(normalized) as User | undefined;
-  if (existing) return existing;
+  const existing = db.prepare('SELECT * FROM users WHERE wallet_address = ?').get(normalized) as Record<string, unknown> | undefined;
+  if (existing) {
+    return {
+      id: existing.id as string,
+      walletAddress: (existing.wallet_address || existing.walletAddress) as string,
+      createdAt: (existing.created_at || existing.createdAt) as string,
+    };
+  }
 
   const id = generateId();
   const now = new Date().toISOString();
@@ -42,7 +48,13 @@ export function findOrCreateUser(walletAddress: string): User {
 
 export function getUserByWallet(walletAddress: string): User | undefined {
   const db = getDb();
-  return db.prepare('SELECT * FROM users WHERE wallet_address = ?').get(walletAddress.toLowerCase()) as User | undefined;
+  const row = db.prepare('SELECT * FROM users WHERE wallet_address = ?').get(walletAddress.toLowerCase()) as Record<string, unknown> | undefined;
+  if (!row) return undefined;
+  return {
+    id: row.id as string,
+    walletAddress: (row.wallet_address || row.walletAddress) as string,
+    createdAt: (row.created_at || row.createdAt) as string,
+  };
 }
 
 export function getUserById(userId: string): User | undefined {
@@ -403,12 +415,14 @@ export function createEvidence(data: Omit<Evidence, 'id' | 'discoveredAt'>): Evi
     INSERT INTO evidence (
       id, agent_id, claim, direction, source_url, source_name, source_type, 
       published_at, discovered_at, reliability_score, relevance_score, 
-      strength_score, confidence_impact, status, created_at
+      strength_score, confidence_impact, status, created_at,
+      source, title, url, snippet, retrieved_at, relevance, stance
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, data.agentId, claim, direction, sourceUrl, sourceName, sourceType, 
-    data.publishedAt ?? null, now, reliability, relevance, strength, impact, status, now
+    data.publishedAt ?? null, now, reliability, relevance, strength, impact, status, now,
+    sourceName || 'Web', claim, sourceUrl || 'https://mindcast.fun', claim, now, (relevance / 100), direction
   );
 
   // Update source intelligence trajectory statistics
@@ -486,6 +500,13 @@ export function updatePaymentStatus(id: string, status: PaymentStatus): void {
   const db = getDb();
   const verifiedAt = status === PaymentStatus.CONFIRMED ? new Date().toISOString() : null;
   db.prepare('UPDATE payments SET status = ?, verified_at = ? WHERE id = ?').run(status, verifiedAt, id);
+}
+
+export function getPayment(id: string): Payment | undefined {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM payments WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+  if (!row) return undefined;
+  return mapPayment(row);
 }
 
 export function getPaymentByTxHash(chain: string, txHash: string): Payment | undefined {
@@ -746,6 +767,7 @@ function mapDebate(row: Record<string, unknown>): Debate {
     currentRound: row.current_round as number,
     createdAt: row.created_at as string,
     completedAt: row.completed_at as string | null,
+    resultSummary: (row.result_summary || null) as string | null,
   };
 }
 

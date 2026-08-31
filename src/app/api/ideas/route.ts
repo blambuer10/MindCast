@@ -6,37 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { findOrCreateUser, createIdea, getIdeasFeed } from '@/lib/database/queries';
+import { moderateContent } from '@/lib/security/moderation';
 import type { FeedFilters } from '@/lib/types';
-
-// Moderation — basic content filter
-function moderateContent(content: string): { ok: boolean; reason?: string } {
-  const trimmed = content.trim();
-
-  if (!trimmed || trimmed.length === 0) {
-    return { ok: false, reason: 'Idea cannot be empty.' };
-  }
-
-  if (trimmed.length > 280) {
-    return { ok: false, reason: 'Idea must be 280 characters or less.' };
-  }
-
-  if (/^\s+$/.test(trimmed)) {
-    return { ok: false, reason: 'Idea cannot be whitespace only.' };
-  }
-
-  // Basic spam/malicious content detection
-  const blocked = [
-    /\b(buy\s*now|free\s*money|click\s*here|earn\s*\$|guaranteed\s*return)\b/i,
-  ];
-
-  for (const pattern of blocked) {
-    if (pattern.test(trimmed)) {
-      return { ok: false, reason: 'Content does not meet community guidelines.' };
-    }
-  }
-
-  return { ok: true };
-}
 
 // POST — Prepare a new idea
 export async function POST(request: NextRequest) {

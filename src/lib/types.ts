@@ -161,6 +161,7 @@ export interface Debate {
   currentRound: DebateRound;
   createdAt: string;
   completedAt: string | null;
+  resultSummary?: string | null;
 }
 
 export interface DebateMessage {
