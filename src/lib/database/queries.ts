@@ -395,14 +395,12 @@ export function createEvidence(data: Omit<Evidence, 'id' | 'discoveredAt'>): Evi
     INSERT INTO evidence (
       id, agent_id, claim, direction, source_url, source_name, source_type, 
       published_at, discovered_at, reliability_score, relevance_score, 
-      strength_score, confidence_impact, status, created_at,
-      source, title, url, snippet, relevance, stance
+      strength_score, confidence_impact, status, created_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, data.agentId, claim, direction, sourceUrl, sourceName, sourceType, 
-    data.publishedAt ?? null, now, reliability, relevance, strength, impact, status, now,
-    sourceName, claim, sourceUrl, claim, relevance / 100, direction
+    data.publishedAt ?? null, now, reliability, relevance, strength, impact, status, now
   );
 
   // Update source intelligence trajectory statistics
