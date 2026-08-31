@@ -31,7 +31,7 @@ export async function verifyOnChainPayment(
       (process.env.PAYMENT_RECIPIENT_ADDRESS || '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2').toLowerCase(),
       '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2'.toLowerCase(),
       '0x73877aBf37e7400393B538E3babD182949C1cA55'.toLowerCase(),
-      '0xB284ED722cCC17B0BE3737A1a5cA8b991fA81F3a'.toLowerCase(),
+      '0x7387Ceb8BA1A068A0b19F7CC098EBC0b3751CA55'.toLowerCase(),
       '0x7a63d9197F49e7C6D27faE4fa4896791e84774B8'.toLowerCase(),
     ];
 
