@@ -44,7 +44,7 @@ export function getDb(): Database.Database {
   try { db.exec(`UPDATE mind_assets SET market_status = 'ACTIVE';`); } catch (_) {}
   try { db.exec(`ALTER TABLE mind_assets ADD COLUMN token_address TEXT;`); } catch (_) {}
   try { db.exec(`ALTER TABLE mind_assets ADD COLUMN pool_address TEXT;`); } catch (_) {}
-  try { db.exec(`UPDATE mind_assets SET token_address = '0x9B3ded34d5357FC0187F322fb74960f667BBE490' WHERE UPPER(mind_id) = 'MIND-590A';`); } catch (_) {}
+  try { db.exec(`UPDATE mind_assets SET token_address = '0x2cD4a125eA8d1f28dC0fdE1f241AAd2C96817B67', pool_address = '0xdFeeeC136Aa4808ffC8c1CE74dDE9A2Be01A7755' WHERE UPPER(mind_id) = 'MIND-590A';`); } catch (_) {}
 
   // Dynamically add upgraded evidence columns to existing databases
   try { db.exec(`ALTER TABLE evidence ADD COLUMN claim TEXT NOT NULL DEFAULT '';`); } catch (_) {}

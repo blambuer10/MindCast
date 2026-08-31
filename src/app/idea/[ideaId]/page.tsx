@@ -722,18 +722,19 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
 
                       {/* DEX Graduation Progress & Controls */}
                       {(() => {
-                        const tokenAddress = data?.mindAsset?.tokenAddress || '0x9B3ded34d5357FC0187F322fb74960f667BBE490';
+                        const tokenAddress = data?.mindAsset?.tokenAddress || '0x2cD4a125eA8d1f28dC0fdE1f241AAd2C96817B67';
+                        const poolAddress = data?.mindAsset?.poolAddress || '0xdFeeeC136Aa4808ffC8c1CE74dDE9A2Be01A7755';
                         return isDexActive ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
                             <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#16a34a', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontWeight: 600 }}>🚀 Token Contract Deployed on Base Mainnet ($MIND)</span>
+                              <span style={{ fontWeight: 600 }}>🚀 Token & Uniswap v3 Pool Active on Base ($MIND)</span>
                               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>LP Burned 🔥</span>
                             </div>
 
                             {/* Token Contract Address Banner */}
                             <div style={{ background: 'var(--paper-2)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ color: 'var(--muted)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Token Contract:</span>
+                                <span style={{ color: 'var(--muted)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Token:</span>
                                 <a
                                   href={`https://basescan.org/token/${tokenAddress}`}
                                   target="_blank"
@@ -741,7 +742,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                                   style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink)', fontWeight: 600, textDecoration: 'underline' }}
                                   title="View on BaseScan"
                                 >
-                                  {tokenAddress.slice(0, 10)}...{tokenAddress.slice(-8)}
+                                  {tokenAddress.slice(0, 8)}...{tokenAddress.slice(-6)}
                                 </a>
                               </div>
                               <button
@@ -761,7 +762,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                             {/* Live DEX & LP Explorer Links */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                               <a
-                                href={`https://dexscreener.com/base/${tokenAddress}`}
+                                href={`https://dexscreener.com/base/${poolAddress}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="btn btn-secondary btn-sm"
@@ -770,7 +771,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                                 📊 DexScreener ↗
                               </a>
                               <a
-                                href={`https://www.dextools.io/app/en/base/pair-explorer/${tokenAddress}`}
+                                href={`https://www.dextools.io/app/en/base/pair-explorer/${poolAddress}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="btn btn-secondary btn-sm"
@@ -779,13 +780,13 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                                 🛠️ DEXTools ↗
                               </a>
                               <a
-                                href={`https://aerodrome.finance/swap?from=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913&to=${tokenAddress}`}
+                                href={`https://basescan.org/address/${poolAddress}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="btn btn-secondary btn-sm"
                                 style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
-                                🦄 Aerodrome LP ↗
+                                🦄 Uniswap v3 Pool ↗
                               </a>
                               <a
                                 href={`https://basescan.org/token/${tokenAddress}`}
