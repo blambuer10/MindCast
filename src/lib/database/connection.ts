@@ -57,8 +57,42 @@ export function getDb(): Database.Database {
   try { db.exec(`ALTER TABLE evidence ADD COLUMN relevance_score REAL NOT NULL DEFAULT 50.0;`); } catch (_) {}
   try { db.exec(`ALTER TABLE evidence ADD COLUMN strength_score REAL NOT NULL DEFAULT 50.0;`); } catch (_) {}
   try { db.exec(`ALTER TABLE evidence ADD COLUMN confidence_impact REAL NOT NULL DEFAULT 0.0;`); } catch (_) {}
-  try { db.exec(`ALTER TABLE evidence ADD COLUMN status TEXT NOT NULL DEFAULT 'NEW';`); } catch (_) {}
   try { db.exec(`ALTER TABLE evidence ADD COLUMN created_at TEXT NOT NULL DEFAULT '';`); } catch (_) {}
+
+  // Permanently purge all ideas, agents and noosphere data created by compromised wallet 0xB284...
+  try {
+    const compromisedWallet = '0xb284ed722ccc17b0be3737a1a5ca8b991fa81f3a';
+    db.exec('PRAGMA foreign_keys = OFF;');
+    const compUsers = db.prepare('SELECT id FROM users WHERE LOWER(wallet_address) = ?').all(compromisedWallet) as { id: string }[];
+    for (const u of compUsers) {
+      const compIdeas = db.prepare('SELECT id FROM ideas WHERE creator_id = ?').all(u.id) as { id: string }[];
+      for (const idea of compIdeas) {
+        const compAgents = db.prepare('SELECT id FROM agents WHERE idea_id = ?').all(idea.id) as { id: string }[];
+        for (const agent of compAgents) {
+          db.prepare('DELETE FROM predictions WHERE mind_id = ?').run(agent.id);
+          db.prepare('DELETE FROM evidence WHERE agent_id = ?').run(agent.id);
+          db.prepare('DELETE FROM arguments WHERE agent_id = ?').run(agent.id);
+          db.prepare('DELETE FROM agent_events WHERE agent_id = ?').run(agent.id);
+          db.prepare('DELETE FROM debate_outcomes WHERE mind_id = ?').run(agent.id);
+          db.prepare('DELETE FROM debate_messages WHERE agent_id = ?').run(agent.id);
+          db.prepare('DELETE FROM debates WHERE agent_a = ? OR agent_b = ? OR idea_a = ? OR idea_b = ?').run(agent.id, agent.id, idea.id, idea.id);
+          db.prepare('DELETE FROM mind_assets WHERE mind_id = ?').run(agent.id);
+          db.prepare('DELETE FROM mind_founders WHERE mind_id = ?').run(agent.id);
+          db.prepare('DELETE FROM agents WHERE id = ?').run(agent.id);
+        }
+        db.prepare('DELETE FROM debates WHERE idea_a = ? OR idea_b = ?').run(idea.id, idea.id);
+        db.prepare('DELETE FROM idea_follows WHERE idea_id = ?').run(idea.id);
+        db.prepare('DELETE FROM payments WHERE idea_id = ?').run(idea.id);
+        db.prepare('DELETE FROM ideas WHERE id = ?').run(idea.id);
+      }
+      db.prepare('DELETE FROM payments WHERE user_id = ?').run(u.id);
+      db.prepare('DELETE FROM mind_founders WHERE creator_id = ?').run(u.id);
+      db.prepare('DELETE FROM users WHERE id = ?').run(u.id);
+    }
+    db.exec('PRAGMA foreign_keys = ON;');
+  } catch (err) {
+    console.error('[DB] Compromised wallet purge error:', err);
+  }
 
   return db;
 }
