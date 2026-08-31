@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const health: Record<string, any> = {
     status: 'healthy',
+    version: 'audit-v3-no-mock',
     timestamp: new Date().toISOString(),
     services: {
       application: 'healthy',
