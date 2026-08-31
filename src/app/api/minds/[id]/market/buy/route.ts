@@ -30,20 +30,21 @@ export async function POST(
       );
     }
 
-    const agent = getAgent(id);
+    const { getAgentByIdea, createMindAsset } = await import('@/lib/database/queries');
+    const agent = getAgent(id) || getAgentByIdea(id);
     if (!agent) {
       return NextResponse.json({ error: 'Mind agent not found.' }, { status: 404 });
     }
 
-    const asset = getMindAsset(id);
-    if (!asset || asset.marketStatus !== 'ACTIVE') {
-      return NextResponse.json({ error: 'Shares market is not active for this Mind.' }, { status: 400 });
+    let asset = getMindAsset(agent.id) || getMindAsset(agent.ideaId);
+    if (!asset) {
+      asset = createMindAsset(agent.id);
     }
 
     // Rate Limiting Protection
     const { isRateLimited } = await import('@/lib/security/rate-limiter');
     const ip = request.headers.get('x-forwarded-for') || 'local-ip';
-    const rateCheck = isRateLimited(`market-buy-${ip}-${walletAddress}`, 5, 60000);
+    const rateCheck = isRateLimited(`market-buy-${ip}-${walletAddress}`, 10, 60000);
     if (rateCheck.limited) {
       return NextResponse.json({ error: 'Too many requests. Please wait.' }, { status: 429 });
     }
@@ -86,22 +87,25 @@ export async function POST(
     // Update general asset
     const newCreatorAlloc = asset.creatorAllocation + parsedPercentage;
     const newCommunityAlloc = Math.max(0, asset.communityAllocation - parsedPercentage);
-    updateMindAssetAllocations(id, newCreatorAlloc, newCommunityAlloc);
+    updateMindAssetAllocations(agent.id, newCreatorAlloc, newCommunityAlloc);
 
     // Update user founder allocation
-    const row = db.prepare('SELECT * FROM mind_founders WHERE mind_id = ? AND creator_id = ?').get(id, user.id) as any;
+    const row = db.prepare('SELECT * FROM mind_founders WHERE (UPPER(mind_id) = UPPER(?) OR UPPER(mind_id) = UPPER(?)) AND creator_id = ?')
+      .get(agent.id, agent.ideaId, user.id) as any;
     if (row) {
-      db.prepare('UPDATE mind_founders SET allocation_percentage = allocation_percentage + ? WHERE mind_id = ? AND creator_id = ?')
-        .run(parsedPercentage, id, user.id);
+      db.prepare('UPDATE mind_founders SET allocation_percentage = allocation_percentage + ?, allocation_status = ? WHERE mind_id = ? AND creator_id = ?')
+        .run(parsedPercentage, 'CONFIRMED', row.mind_id, user.id);
     } else {
       db.prepare('INSERT INTO mind_founders (creator_id, mind_id, allocation_percentage, allocation_status) VALUES (?, ?, ?, ?)')
-        .run(user.id, id, parsedPercentage, 'CONFIRMED');
+        .run(user.id, agent.id, parsedPercentage, 'CONFIRMED');
     }
 
     return NextResponse.json({
       success: true,
       creatorAllocation: newCreatorAlloc,
       communityAllocation: newCommunityAlloc,
+      agentId: agent.id,
+      sharesOwned: parsedPercentage * 1000,
     });
 
   } catch (error) {

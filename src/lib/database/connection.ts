@@ -40,7 +40,8 @@ export function getDb(): Database.Database {
   try { db.exec(`ALTER TABLE agents ADD COLUMN prediction_accuracy REAL NOT NULL DEFAULT 0.0;`); } catch (_) {}
   try { db.exec(`ALTER TABLE agents ADD COLUMN calibration_score REAL NOT NULL DEFAULT 100.0;`); } catch (_) {}
   try { db.exec(`ALTER TABLE agents ADD COLUMN estimated_value REAL NOT NULL DEFAULT 1000.0;`); } catch (_) {}
-  try { db.exec(`ALTER TABLE agents ADD COLUMN market_status TEXT NOT NULL DEFAULT 'INACTIVE';`); } catch (_) {}
+  try { db.exec(`ALTER TABLE agents ADD COLUMN market_status TEXT NOT NULL DEFAULT 'ACTIVE';`); } catch (_) {}
+  try { db.exec(`UPDATE mind_assets SET market_status = 'ACTIVE';`); } catch (_) {}
 
   // Dynamically add upgraded evidence columns to existing databases
   try { db.exec(`ALTER TABLE evidence ADD COLUMN claim TEXT NOT NULL DEFAULT '';`); } catch (_) {}

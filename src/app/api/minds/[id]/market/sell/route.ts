@@ -34,14 +34,15 @@ export async function POST(
       );
     }
 
-    const agent = getAgent(id);
+    const { getAgentByIdea, createMindAsset } = await import('@/lib/database/queries');
+    const agent = getAgent(id) || getAgentByIdea(id);
     if (!agent) {
       return NextResponse.json({ error: 'Mind agent not found.' }, { status: 404 });
     }
 
-    const asset = getMindAsset(id);
-    if (!asset || asset.marketStatus !== 'ACTIVE') {
-      return NextResponse.json({ error: 'Shares market is not active for this Mind.' }, { status: 400 });
+    let asset = getMindAsset(agent.id) || getMindAsset(agent.ideaId);
+    if (!asset) {
+      asset = createMindAsset(agent.id);
     }
 
     const user = findOrCreateUser(walletAddress);
@@ -49,7 +50,8 @@ export async function POST(
     const parsedPercentage = parseFloat(percentage);
 
     // 1. Verify user has enough allocation to sell
-    const row = db.prepare('SELECT allocation_percentage FROM mind_founders WHERE mind_id = ? AND creator_id = ?').get(id, user.id) as { allocation_percentage: number } | undefined;
+    const row = db.prepare('SELECT allocation_percentage FROM mind_founders WHERE (UPPER(mind_id) = UPPER(?) OR UPPER(mind_id) = UPPER(?)) AND creator_id = ?')
+      .get(agent.id, agent.ideaId, user.id) as { allocation_percentage: number } | undefined;
     if (!row || row.allocation_percentage < parsedPercentage) {
       return NextResponse.json(
         { error: `Insufficient shares. You only own ${row ? row.allocation_percentage : 0}% shares.` },
@@ -57,8 +59,8 @@ export async function POST(
       );
     }
 
-    // 2. Process pay-out to user from local test wallet using TEST_PRIVATE_KEY
-    const privateKey = process.env.TEST_PRIVATE_KEY;
+    // 2. Process pay-out to user from deployer/liquidity wallet
+    const privateKey = process.env.DEPLOY_PRIVATE_KEY || process.env.TEST_PRIVATE_KEY;
     let payoutTxHash = '';
     
     if (!privateKey) {
@@ -131,15 +133,16 @@ export async function POST(
     // 3. Update database allocations
     const newCreatorAlloc = Math.max(0, asset.creatorAllocation - parsedPercentage);
     const newCommunityAlloc = asset.communityAllocation + parsedPercentage;
-    updateMindAssetAllocations(id, newCreatorAlloc, newCommunityAlloc);
+    updateMindAssetAllocations(agent.id, newCreatorAlloc, newCommunityAlloc);
 
     // Deduct user allocation
     const newFounderPercentage = Math.max(0, row.allocation_percentage - parsedPercentage);
     if (newFounderPercentage === 0) {
-      db.prepare('DELETE FROM mind_founders WHERE mind_id = ? AND creator_id = ?').run(id, user.id);
+      db.prepare('DELETE FROM mind_founders WHERE (UPPER(mind_id) = UPPER(?) OR UPPER(mind_id) = UPPER(?)) AND creator_id = ?')
+        .run(agent.id, agent.ideaId, user.id);
     } else {
-      db.prepare('UPDATE mind_founders SET allocation_percentage = ? WHERE mind_id = ? AND creator_id = ?')
-        .run(newFounderPercentage, id, user.id);
+      db.prepare('UPDATE mind_founders SET allocation_percentage = ? WHERE (UPPER(mind_id) = UPPER(?) OR UPPER(mind_id) = UPPER(?)) AND creator_id = ?')
+        .run(newFounderPercentage, agent.id, agent.ideaId, user.id);
     }
 
     return NextResponse.json({

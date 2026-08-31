@@ -610,18 +610,18 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                       {/* Title & Price Row */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--parchment)' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--ink)' }}>
                             {agent.id}
                           </div>
-                          <div style={{ fontSize: 'var(--text-xs)', color: isDexActive ? '#4ade80' : 'var(--violet)', fontWeight: 600 }}>
+                          <div style={{ fontSize: 'var(--text-xs)', color: isDexActive ? '#16a34a' : 'var(--violet)', fontWeight: 600 }}>
                             {isDexActive ? '🚀 DEX LISTED (Uniswap & Aerodrome)' : `⚡ BONDING CURVE (${agent.lifecycleStatus})`}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--success)' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 700, color: '#16a34a' }}>
                             {formattedSharePrice}
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>
+                          <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>
                             +18.4%
                           </div>
                         </div>
@@ -633,19 +633,19 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                         <div>
                           <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Market Cap</div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--parchment)' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--ink)' }}>
                             {formattedMarketCap}
                           </div>
                         </div>
                         <div>
                           <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Holders</div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--parchment)' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--ink)' }}>
                             {holdersCount}
                           </div>
                         </div>
                         <div>
                           <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Volume (24h)</div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--parchment)' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--ink)' }}>
                             {formattedVolume}
                           </div>
                         </div>
@@ -661,7 +661,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
                             {userSharesCount.toLocaleString()} MIND
                           </div>
                         </div>
-                        <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: '#4ade80' }}>
+                        <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: '#16a34a' }}>
                           ${userPositionValue.toFixed(2)}
                         </div>
                       </div>

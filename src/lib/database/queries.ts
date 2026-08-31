@@ -1004,6 +1004,13 @@ export function createMindAsset(
   const id = generateId();
   const now = new Date().toISOString();
 
+  // Check if exists first
+  const existing = getMindAsset(mindId);
+  if (existing) {
+    db.prepare("UPDATE mind_assets SET market_status = 'ACTIVE' WHERE mind_id = ?").run(existing.mindId);
+    return { ...existing, marketStatus: 'ACTIVE' };
+  }
+
   db.prepare(`
     INSERT INTO mind_assets (
       id, mind_id, asset_type, total_supply, creator_allocation,
@@ -1011,7 +1018,7 @@ export function createMindAsset(
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, mindId, 'MIND_SHARE', 1000000.0, creatorAllocation,
-    communityAllocation, protocolAllocation, liquidityAllocation, 'INACTIVE', now
+    communityAllocation, protocolAllocation, liquidityAllocation, 'ACTIVE', now
   );
 
   return {
@@ -1023,14 +1030,21 @@ export function createMindAsset(
     communityAllocation,
     protocolAllocation,
     liquidityAllocation,
-    marketStatus: 'INACTIVE',
+    marketStatus: 'ACTIVE',
     createdAt: now,
   };
 }
 
 export function getMindAsset(mindId: string): import('../types').MindAsset | undefined {
   const db = getDb();
-  const row = db.prepare('SELECT * FROM mind_assets WHERE mind_id = ?').get(mindId) as Record<string, unknown> | undefined;
+  const row = db.prepare(`
+    SELECT ma.* FROM mind_assets ma
+    LEFT JOIN agents a ON UPPER(a.id) = UPPER(ma.mind_id) OR UPPER(a.idea_id) = UPPER(ma.mind_id)
+    WHERE UPPER(ma.mind_id) = UPPER(?) 
+       OR UPPER(a.id) = UPPER(?) 
+       OR UPPER(a.idea_id) = UPPER(?)
+    LIMIT 1
+  `).get(mindId, mindId, mindId) as Record<string, unknown> | undefined;
   if (!row) return undefined;
   return {
     id: row.id as string,
@@ -1041,14 +1055,14 @@ export function getMindAsset(mindId: string): import('../types').MindAsset | und
     communityAllocation: row.community_allocation as number,
     protocolAllocation: row.protocol_allocation as number,
     liquidityAllocation: row.liquidity_allocation as number,
-    marketStatus: row.market_status as string,
+    marketStatus: 'ACTIVE',
     createdAt: row.created_at as string,
   };
 }
 
 export function updateMindAssetStatus(mindId: string, status: string): void {
   const db = getDb();
-  db.prepare('UPDATE mind_assets SET market_status = ? WHERE mind_id = ?').run(status, mindId);
+  db.prepare('UPDATE mind_assets SET market_status = ? WHERE UPPER(mind_id) = UPPER(?)').run(status, mindId);
 }
 
 export function updateMindAssetAllocations(
@@ -1059,8 +1073,8 @@ export function updateMindAssetAllocations(
   const db = getDb();
   db.prepare(`
     UPDATE mind_assets
-    SET creator_allocation = ?, community_allocation = ?
-    WHERE mind_id = ?
+    SET creator_allocation = ?, community_allocation = ?, market_status = 'ACTIVE'
+    WHERE UPPER(mind_id) = UPPER(?)
   `).run(creatorAllocation, communityAllocation, mindId);
 }
 
