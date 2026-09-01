@@ -5,6 +5,8 @@ import Link from 'next/link';
 
 import { useWallet } from '@/hooks/useWallet';
 
+import NoosMark from '@/components/ui/NoosMark';
+
 // ─── Header Component ─────────────────────────────────────────────────────
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -21,10 +23,17 @@ export default function Header() {
   };
 
   return (
-    <header className="shell topbar" style={{ position: 'sticky', top: 0, zIndex: 100, background: 'var(--paper)' }}>
-      <Link href="/" className="brand">
-        <span className="brand-mark"></span>
-        <span>MINDCAST</span>
+    <header className="shell topbar" style={{ position: 'sticky', top: 0, zIndex: 100, background: 'var(--paper)', borderBottom: '1px solid var(--border)' }}>
+      <Link href="/" className="brand" aria-label="MINDCAST · IDEAS, ALIVE.">
+        <NoosMark size={30} glow={scrolled} />
+        <div className="brand-text-wrap" style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
+          <span className="brand-name" style={{ fontFamily: 'var(--sans)', fontWeight: 700, letterSpacing: '0.14em', fontSize: '15px', color: 'var(--ink)' }}>
+            MINDCAST
+          </span>
+          <span className="brand-tagline" style={{ fontFamily: 'var(--sans)', fontSize: '9px', fontWeight: 600, letterSpacing: '0.18em', color: 'var(--violet)', textTransform: 'uppercase' }}>
+            IDEAS, ALIVE.
+          </span>
+        </div>
       </Link>
 
       <nav className="nav" aria-label="Main navigation">

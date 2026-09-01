@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import { useWallet } from '@/hooks/useWallet';
 import type { Idea, Agent, MindState, Prediction } from '@/lib/types';
+import NoosMark from '@/components/ui/NoosMark';
 
 interface IdeaPageData {
   idea: Idea;
@@ -400,7 +401,9 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
         <Header />
         <main className="page-container">
           <div className="empty-state">
-            <div className="empty-state-icon">?</div>
+            <div style={{ marginBottom: '16px' }}>
+              <NoosMark size={56} isSleeping={true} />
+            </div>
             <h3 className="empty-state-title">Mind not found.</h3>
             <p className="empty-state-text">This idea may not exist or may have been removed.</p>
             <Link href="/explore" className="btn btn-secondary" style={{ marginTop: '16px' }}>
@@ -439,6 +442,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
 
           {/* Mind ID & Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+            <NoosMark size={26} glow={true} />
             <span className="mind-id" style={{ fontSize: 'var(--text-sm)', color: 'var(--violet)', fontWeight: 600 }}>{agent?.id || 'MIND-????'}</span>
             <span className="badge" style={{ ...badgeStyle, padding: '4px 8px', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
               {statusText}
@@ -494,7 +498,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
             paddingLeft: '24px',
             borderLeft: '3px solid var(--violet)',
           }}>
-            &ldquo;{idea.content}&rdquo;
+            &ldquo;{idea.content ? idea.content.replace(/^["“'”]+|["“'”]+$/g, '').trim() : ''}&rdquo;
           </blockquote>
 
           {/* Social Share Bar */}

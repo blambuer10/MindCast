@@ -9,16 +9,16 @@ type DocSection = 'welcome' | 'cognitive-engine' | 'user-flow' | 'tokenomics-dex
 export default function DocsPage() {
   const [activeSection, setActiveSection] = useState<DocSection>('welcome');
 
-  const navItems: Array<{ id: DocSection; label: string; icon: string }> = [
-    { id: 'welcome', label: 'Welcome to MINDCAST', icon: '🪐' },
-    { id: 'cognitive-engine', label: 'Cognitive Engine & Predictions', icon: '🧠' },
-    { id: 'user-flow', label: 'E2E User Flow & Lifecycle', icon: '🔄' },
-    { id: 'tokenomics-dex', label: 'Tokenomics, Bonding Curve & DEX', icon: '📈' },
-    { id: 'economics', label: 'Mind Unit Economics', icon: '📊' },
-    { id: 'evidence', label: 'Evidence & Trust Engine', icon: '📰' },
-    { id: 'debate', label: 'Debate Arena Model', icon: '⚔️' },
-    { id: 'data-layer', label: 'Data Asset & Intelligence', icon: '📡' },
-    { id: 'participation', label: 'Participation & Rewards', icon: '💎' },
+  const navItems: Array<{ id: DocSection; label: string }> = [
+    { id: 'welcome', label: 'Welcome to MINDCAST' },
+    { id: 'cognitive-engine', label: 'Cognitive Engine & Predictions' },
+    { id: 'user-flow', label: 'E2E User Flow & Lifecycle' },
+    { id: 'tokenomics-dex', label: 'Tokenomics, Bonding Curve & DEX' },
+    { id: 'economics', label: 'Mind Unit Economics' },
+    { id: 'evidence', label: 'Evidence & Trust Engine' },
+    { id: 'debate', label: 'Debate Arena Model' },
+    { id: 'data-layer', label: 'Data Asset & Intelligence' },
+    { id: 'participation', label: 'Participation & Rewards' },
   ];
 
   return (
@@ -28,7 +28,7 @@ export default function DocsPage() {
         
         {/* Breadcrumb / Return home */}
         <div style={{ marginBottom: 'var(--space-6)' }}>
-          <Link href="/" style={{ fontSize: 'var(--text-sm)', color: 'var(--signal)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Link href="/" style={{ fontSize: 'var(--text-sm)', color: 'var(--violet)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
             <span>←</span> Return Home
           </Link>
         </div>
@@ -47,7 +47,7 @@ export default function DocsPage() {
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 'var(--space-2)' }}>
                 Documentation
               </div>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', color: 'var(--ink)', margin: 0 }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', color: 'var(--ink)', margin: 0, fontWeight: 600 }}>
                 System Architecture
               </h2>
             </div>
@@ -60,23 +60,21 @@ export default function DocsPage() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 'var(--space-3)',
                     width: '100%',
-                    padding: 'var(--space-3) var(--space-4)',
-                    background: activeSection === item.id ? 'rgba(255,255,255,0.03)' : 'transparent',
+                    padding: '10px 14px',
+                    background: activeSection === item.id ? 'var(--violet-soft)' : 'transparent',
                     border: 'none',
-                    borderLeft: activeSection === item.id ? '2px solid var(--signal)' : '2px solid transparent',
-                    borderRadius: '0 4px 4px 0',
+                    borderLeft: activeSection === item.id ? '3px solid var(--violet)' : '3px solid transparent',
+                    borderRadius: '0 8px 8px 0',
                     textAlign: 'left',
-                    color: activeSection === item.id ? 'var(--parchment)' : 'var(--slate)',
+                    color: activeSection === item.id ? 'var(--violet)' : 'var(--muted)',
                     fontSize: 'var(--text-sm)',
-                    fontWeight: activeSection === item.id ? 600 : 400,
+                    fontWeight: activeSection === item.id ? 600 : 500,
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
+                    transition: 'all 0.16s ease',
                   }}
                   className="doc-nav-btn"
                 >
-                  <span>{item.icon}</span>
                   {item.label}
                 </button>
               ))}
@@ -89,7 +87,7 @@ export default function DocsPage() {
             {activeSection === 'welcome' && (
               <div>
                 <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-3xl)', color: 'var(--ink)', marginBottom: 'var(--space-2)' }}>
-                  🪐 MINDCAST: The Autonomous Intellectual Minds
+                  MINDCAST: Autonomous Intellectual Minds
                 </h1>
                 <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>
                   Core System Architecture, Philosophy, and Layered Stacks.
@@ -98,14 +96,14 @@ export default function DocsPage() {
 
                 {/* Fundamental Separation Banner */}
                 <div style={{
-                  background: 'rgba(168,85,247,0.04)',
+                  background: 'var(--violet-soft)',
                   borderLeft: '4px solid var(--violet)',
                   borderRadius: '0 8px 8px 0',
                   padding: 'var(--space-5)',
                   marginBottom: 'var(--space-8)'
                 }}>
                   <strong style={{ color: 'var(--violet)', fontSize: 'var(--text-sm)', display: 'block', marginBottom: '6px' }}>
-                    💡 The Fundamental Separation
+                    The Fundamental Separation
                   </strong>
                   <p style={{ color: 'var(--ink)', fontSize: 'var(--text-xs)', lineHeight: 1.6, margin: 0 }}>
                     <strong>"The user is the creator of the idea. The Mind is its living intellectual representative."</strong>
@@ -116,7 +114,7 @@ export default function DocsPage() {
 
                 <section style={{ marginBottom: 'var(--space-8)' }}>
                   <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', color: 'var(--ink)', marginBottom: 'var(--space-4)' }}>
-                    📖 Introduction
+                    Introduction
                   </h2>
                   <p style={{ color: 'var(--slate)', lineHeight: 1.6, marginBottom: 'var(--space-4)', fontSize: 'var(--text-sm)' }}>
                     Traditional AI platforms operate on a simple **request-response** model: a user prompts an AI, the AI answers, and the conversation halts.
@@ -129,7 +127,7 @@ export default function DocsPage() {
                 {/* 3-Tier Platform Coordination */}
                 <section style={{ marginBottom: 'var(--space-8)' }}>
                   <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', color: 'var(--ink)', marginBottom: 'var(--space-4)' }}>
-                    📡 The 3-Tier Platform Architecture
+                    The 3-Tier Platform Architecture
                   </h2>
                   <p style={{ color: 'var(--slate)', lineHeight: 1.6, marginBottom: 'var(--space-6)', fontSize: 'var(--text-sm)' }}>
                     MINDCAST coordinates intelligence, reasoning, and security by separating duties across three main pillars:
@@ -196,24 +194,23 @@ export default function DocsPage() {
             {activeSection === 'cognitive-engine' && (
               <div className="animate-fade-in">
                 <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-3xl)', color: 'var(--ink)', marginBottom: 'var(--space-2)' }}>
-                  🧠 Cognitive Engine: Predictions, Evidence, Arguments & Activity
+                  Cognitive Engine: Predictions, Evidence, Arguments & Activity
                 </h1>
                 <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>
                   How autonomous AI Minds research, reason, dispute, and build market credibility.
                 </p>
                 <hr style={{ border: '0', height: '1px', background: 'var(--border)', marginBottom: 'var(--space-8)' }} />
 
-                {/* ⚠️ Key Concept Callout Banner */}
+                {/* Key Concept Callout Banner */}
                 <div style={{
-                  background: 'linear-gradient(135deg, rgba(56,189,248,0.08) 0%, rgba(168,85,247,0.08) 100%)',
-                  border: '1px solid rgba(56,189,248,0.3)',
-                  borderRadius: '8px',
+                  background: 'var(--violet-soft)',
+                  border: '1px solid rgba(123, 92, 255, 0.25)',
+                  borderRadius: '12px',
                   padding: 'var(--space-6)',
                   marginBottom: 'var(--space-8)'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
-                    <span style={{ fontSize: 'var(--text-xl)' }}>⚡</span>
-                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', color: 'var(--signal)', margin: 0 }}>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', color: 'var(--violet)', margin: 0, fontWeight: 600 }}>
                       The "Submit Prediction" Cognitive Ignition
                     </h3>
                   </div>
@@ -399,7 +396,7 @@ export default function DocsPage() {
             {activeSection === 'user-flow' && (
               <div>
                 <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-3xl)', color: 'var(--ink)', marginBottom: 'var(--space-2)' }}>
-                  🔄 E2E User Flow & Lifecycle
+                  E2E User Flow &amp; Lifecycle
                 </h1>
                 <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>
                   Journey of an Idea from proposal to an autonomous agent.
@@ -492,7 +489,7 @@ export default function DocsPage() {
             {activeSection === 'tokenomics-dex' && (
               <div>
                 <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-3xl)', color: 'var(--ink)', marginBottom: 'var(--space-2)' }}>
-                  📈 Tokenomics, Bonding Curve &amp; DEX Graduation
+                  Tokenomics, Bonding Curve &amp; DEX Graduation
                 </h1>
                 <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>
                   How thoughts become tokenizeable intellectual assets, scale from internal liquidity to decentralized exchanges (Uniswap &amp; Aerodrome on Base), and create creator wealth.
@@ -502,7 +499,7 @@ export default function DocsPage() {
                 {/* 1. The Tokenization of Ideas */}
                 <section style={{ marginBottom: 'var(--space-8)' }}>
                   <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', color: 'var(--ink)', marginBottom: 'var(--space-4)' }}>
-                    🪙 1. The Tokenization of Ideas (Mind Shares)
+                    1. The Tokenization of Ideas (Mind Shares)
                   </h2>
                   <p style={{ color: 'var(--slate)', lineHeight: 1.6, marginBottom: 'var(--space-4)' }}>
                     Unlike traditional social media where viral thoughts fade without economic retention, MINDCAST transforms every thesis into a tokenized intellectual asset upon on-chain verification (1 USDC on Base):
@@ -923,7 +920,7 @@ export default function DocsPage() {
             {activeSection === 'data-layer' && (
               <div>
                 <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-3xl)', color: 'var(--ink)', marginBottom: 'var(--space-2)' }}>
-                  📡 Data Asset & Intelligence Layer
+                  Data Asset & Intelligence Layer
                 </h1>
                 <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>
                   Event sourcing, anonymization, and commercial data products.

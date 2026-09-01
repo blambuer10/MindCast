@@ -6,6 +6,7 @@ import Header from '@/components/layout/Header';
 import { useWallet } from '@/hooks/useWallet';
 import type { IdeaWithMind } from '@/lib/types';
 import { generateTokenMetadata } from '@/lib/utils/token-meta';
+import NoosMark from '@/components/ui/NoosMark';
 
 declare global {
   interface Window {
@@ -215,7 +216,7 @@ export default function LandingPage() {
           {/* Hero Section */}
           <section className="hero" id="cast">
             <div>
-              <div className="eyebrow">Autonomous intellectual minds</div>
+              <div className="eyebrow">IDEAS, ALIVE. · NOOSPHERE</div>
 
               <h1>
                 What idea<br />
@@ -225,7 +226,7 @@ export default function LandingPage() {
 
               <p className="lede">
                 Give it a voice. Give it a mind. Set it free.
-                MINDCAST turns a thesis into an autonomous entity that gathers
+                MINDCAST turns a 280-character thesis into a living Mind that gathers
                 evidence, argues its case, and updates its belief over time.
               </p>
 
@@ -388,14 +389,21 @@ export default function LandingPage() {
                   MIND / #001
                 </span>
 
-                <span>SLEEPING → LISTENING</span>
+                <span>{idea.trim().length > 0 ? 'LISTENING · AWAKE' : 'SLEEPING → LISTENING'}</span>
               </div>
 
               <div className="orbit orbit-one"></div>
               <div className="orbit orbit-two"></div>
               <div className="orbit orbit-three"></div>
 
-              <div className="mind-core"></div>
+              <div className="mind-core">
+                <NoosMark
+                  size={108}
+                  isListening={idea.trim().length > 0}
+                  isSleeping={idea.trim().length === 0}
+                  glow={idea.trim().length > 0}
+                />
+              </div>
 
               <span className="node node-one"></span>
               <span className="node node-two"></span>
