@@ -1,0 +1,11 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120' width='120' height='120'>
+  <rect width='120' height='120' rx='28' fill='#F3EEE3'/>
+  <g transform='translate(10, 8)'>
+    <circle cx='50' cy='12' r='6' fill='#7B5CFF'/>
+    <line x1='50' y1='18' x2='50' y2='28' stroke='#7B5CFF' stroke-width='4.5' stroke-linecap='round'/>
+    <path d='M 50 28 C 70 28, 86 38, 88 54 C 98 62, 98 76, 88 84 C 84 96, 68 100, 50 100 C 32 100, 16 96, 12 84 C 2 76, 2 62, 12 54 C 14 38, 30 28, 50 28 Z' fill='#FBF7F0' stroke='#7B5CFF' stroke-width='5' stroke-linejoin='round'/>
+    <circle cx='50' cy='62' r='11' fill='#7B5CFF'/>
+    <circle cx='46.5' cy='58.5' r='3.5' fill='#FFFFFF'/>
+    <path d='M 46 80 Q 52 85 58 80' fill='none' stroke='#7B5CFF' stroke-width='3.5' stroke-linecap='round'/>
+  </g>
+</svg>
