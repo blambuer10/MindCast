@@ -63,6 +63,27 @@ export function getManifestConfig(): ManifestConfig {
         tokens: {
           "USDC": "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
         }
+      },
+      "143": {
+        name: "Monad Mainnet",
+        chainId: 143,
+        nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
+        rpcUrls: ["https://rpc.monad.xyz", "https://rpc1.monad.xyz"],
+        blockExplorerUrls: ["https://monadscan.com"],
+        tokens: {
+          "USDC": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603"
+        }
+      },
+      "4663": {
+        name: "Robinhood Chain",
+        chainId: 4663,
+        nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+        rpcUrls: ["https://rpc.mainnet.chain.robinhood.com"],
+        blockExplorerUrls: ["https://robinhoodchain.blockscout.com"],
+        tokens: {
+          "USDC": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "USDG": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"
+        }
       }
     }
   };

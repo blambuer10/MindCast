@@ -1,6 +1,6 @@
 // ============================================================================
-// MINDCAST — Production-grade Multi-Chain Payment Verifier (Sepolia + Mainnet)
-// Supports both Base Sepolia (84532) and Base Mainnet (8453) USDC payments
+// MINDCAST — Production-grade Multi-Chain Payment Verifier
+// Supports Base (8453/84532), Monad Mainnet (143), and Robinhood Chain (4663)
 // ============================================================================
 
 export async function verifyOnChainPayment(
@@ -15,14 +15,19 @@ export async function verifyOnChainPayment(
       { name: 'Base Mainnet', url: process.env.RPC_MAINNET_BASE || 'https://mainnet.base.org' },
       { name: 'Base Mainnet (Llama)', url: 'https://base.llamarpc.com' },
       { name: 'Base Mainnet (1RPC)', url: 'https://1rpc.io/base' },
+      { name: 'Monad Mainnet', url: process.env.RPC_MAINNET_MONAD || 'https://rpc.monad.xyz' },
+      { name: 'Monad Mainnet (Backup)', url: 'https://rpc1.monad.xyz' },
+      { name: 'Robinhood Chain', url: process.env.RPC_MAINNET_ROBINHOOD || 'https://rpc.mainnet.chain.robinhood.com' },
       { name: 'Base Sepolia', url: process.env.BLOCKCHAIN_RPC_URL || 'https://sepolia.base.org' },
       { name: 'Base Sepolia (Public)', url: 'https://sepolia.base.org' },
     ];
 
-    // Supported USDC contract addresses
+    // Supported USDC / Stablecoin contract addresses across chains
     const validUsdcContracts = [
       (process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913').toLowerCase(),
       '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913'.toLowerCase(), // Base Mainnet Native USDC
+      '0x754704bc059f8c67012fed69bc8a327a5aafb603'.toLowerCase(), // Monad Mainnet Official Native USDC (Circle)
+      '0x5fc5360d0400a0fd4f2af552add042d716f1d168'.toLowerCase(), // Robinhood Chain Native USDG / Bridged USDC (Paxos)
       '0x036cbd53842c5426634e7929541ec2318f3dcf7e'.toLowerCase(), // Base Sepolia Test USDC
     ];
 
@@ -87,7 +92,12 @@ export async function verifyOnChainPayment(
                 const transferAmount = Number(rawVal) / 1000000;
 
                 if (transferAmount >= expectedAmount * 0.95) { // 5% slippage tolerance
-                  return { success: true, chain: rpc.name.includes('Mainnet') ? 'Base Mainnet' : 'Base Sepolia' };
+                  let chainLabel = 'Base Mainnet';
+                  if (rpc.name.includes('Monad')) chainLabel = 'Monad Mainnet';
+                  else if (rpc.name.includes('Robinhood')) chainLabel = 'Robinhood Chain';
+                  else if (rpc.name.includes('Sepolia')) chainLabel = 'Base Sepolia';
+
+                  return { success: true, chain: chainLabel };
                 } else {
                   return {
                     success: false,
@@ -110,7 +120,7 @@ export async function verifyOnChainPayment(
 
     return {
       success: false,
-      error: lastError || 'Transaction not found on Base Sepolia or Base Mainnet. Please wait 5-10 seconds for block confirmations and try again.',
+      error: lastError || 'Transaction not found on Base, Monad, or Robinhood Chain. Please wait 5-10 seconds for block confirmations and try again.',
     };
   } catch (err: any) {
     return { success: false, error: err.message || 'Unknown verification error' };

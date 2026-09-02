@@ -16,6 +16,12 @@ declare global {
 
 const MAX_CHARS = 280;
 
+const SUPPORTED_CHAINS = [
+  { id: 8453, key: 'base', name: 'Base', token: 'USDC', icon: '🔵', badge: 'Mainnet' },
+  { id: 143, key: 'monad', name: 'Monad', token: 'USDC', icon: '🟣', badge: 'Mainnet' },
+  { id: 4663, key: 'robinhood', name: 'Robinhood', token: 'USDG', icon: '🟢', badge: 'L2 Mainnet' },
+];
+
 export default function LandingPage() {
   const [idea, setIdea] = useState('');
   const [tokenName, setTokenName] = useState('');
@@ -29,6 +35,9 @@ export default function LandingPage() {
   const [paymentAmount, setPaymentAmount] = useState('1');
   const [errorMessage, setErrorMessage] = useState('');
   const [lastTxHash, setLastTxHash] = useState<string>('');
+  const [selectedChainId, setSelectedChainId] = useState<number>(() => {
+    return parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '8453');
+  });
 
   // Live Noosphere Stream states
   const [streamTab, setStreamTab] = useState<'recent' | 'top-mcap' | 'dex'>('recent');
@@ -60,6 +69,21 @@ export default function LandingPage() {
     fetchStreamMinds(streamTab);
   }, [streamTab, fetchStreamMinds]);
 
+  const selectedChain = SUPPORTED_CHAINS.find(c => c.id === selectedChainId) || SUPPORTED_CHAINS[0];
+
+  const handleSelectChain = async (targetId: number) => {
+    setSelectedChainId(targetId);
+    setErrorMessage('');
+    setLastTxHash('');
+    if (chainId && parseInt(chainId) !== targetId) {
+      try {
+        await switchChain(targetId);
+      } catch (e: any) {
+        console.warn('Network switch deferred:', e);
+      }
+    }
+  };
+
   const handleSetFree = useCallback(async () => {
     if (!isConnected || !address || !isValid || isSubmitting) return;
 
@@ -68,11 +92,20 @@ export default function LandingPage() {
     setLastTxHash('');
 
     try {
-      const targetChainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '8453');
+      let targetChainId = selectedChainId;
+      if (chainId) {
+        const currentCid = parseInt(chainId);
+        if (SUPPORTED_CHAINS.some(c => c.id === currentCid)) {
+          targetChainId = currentCid;
+          setSelectedChainId(currentCid);
+        }
+      }
+
       if (chainId && parseInt(chainId) !== targetChainId) {
         const switched = await switchChain(targetChainId);
         if (!switched) {
-          throw new Error('Please switch to the Base network to continue.');
+          const targetName = SUPPORTED_CHAINS.find(c => c.id === targetChainId)?.name || 'Base';
+          throw new Error(`Please switch to the ${targetName} network to continue.`);
         }
       }
 
@@ -107,7 +140,7 @@ export default function LandingPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [idea, isValid, isSubmitting, isConnected, address, switchChain, chainId, tokenName, tokenTicker]);
+  }, [idea, isValid, isSubmitting, isConnected, address, switchChain, chainId, tokenName, tokenTicker, selectedChainId]);
 
   const handleConfirmPayment = async () => {
     if (!currentIdeaId || !address) return;
@@ -116,6 +149,13 @@ export default function LandingPage() {
     setErrorMessage('');
 
     try {
+      if (chainId && parseInt(chainId) !== selectedChain.id) {
+        const switched = await switchChain(selectedChain.id);
+        if (!switched) {
+          throw new Error(`Please switch to the ${selectedChain.name} network in your wallet to continue.`);
+        }
+      }
+
       // If we already have a confirmed/broadcasted txHash from previous attempt, don't charge again!
       let txHash = lastTxHash;
       if (!txHash) {
@@ -123,10 +163,10 @@ export default function LandingPage() {
         setLastTxHash(txHash);
       }
 
-      // Automatic retry loop on client to give Base blocks time to propagate to public RPCs
+      // Automatic retry loop on client to give blocks time to propagate to public RPCs
       let verified = false;
       let lastErrText = '';
-      const maxRetries = 5;
+      const maxRetries = 6;
 
       for (let i = 1; i <= maxRetries; i++) {
         try {
@@ -136,7 +176,7 @@ export default function LandingPage() {
             body: JSON.stringify({
               ideaId: currentIdeaId,
               txHash,
-              chain: 'base',
+              chain: selectedChain.key,
               walletAddress: address,
             }),
           });
@@ -162,13 +202,13 @@ export default function LandingPage() {
       }
 
       if (!verified) {
-        throw new Error(lastErrText || 'Transaction is still confirming on Base. Please click "Try Again" in 5 seconds to re-check.');
+        throw new Error(lastErrText || `Transaction is still confirming on ${selectedChain.name}. Please click "Try Again" in 5 seconds to re-check.`);
       }
 
     } catch (err: any) {
       console.error('Payment flow error:', err);
       setPaymentState('error');
-      setErrorMessage(err.message || 'USDC transaction failed. Please try again.');
+      setErrorMessage(err.message || `${selectedChain.token} transaction failed. Please try again.`);
     }
   };
 
@@ -976,17 +1016,75 @@ export default function LandingPage() {
                     <span style={{ color: 'var(--ink)' }}>{tokenName || 'Autonomous Cognitive Capital'}</span>
                   </div>
                 </div>
+                {/* Multi-Chain Network Selector */}
+                <div style={{ margin: '20px 0 16px', textAlign: 'left' }}>
+                  <div style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: 'var(--muted)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    marginBottom: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <span>Select Payment Network:</span>
+                    <span style={{ color: 'var(--violet)', fontSize: '11px', textTransform: 'none', fontWeight: 600 }}>
+                      Active: {selectedChain.name}
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                    {SUPPORTED_CHAINS.map(c => {
+                      const isSelected = selectedChainId === c.id;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => handleSelectChain(c.id)}
+                          style={{
+                            padding: '10px 8px',
+                            borderRadius: '12px',
+                            border: `1.5px solid ${isSelected ? 'var(--violet)' : 'var(--border)'}`,
+                            background: isSelected ? 'var(--violet-soft)' : 'rgba(255,255,255,0.03)',
+                            color: isSelected ? 'var(--violet)' : 'var(--ink)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            transition: 'all 0.16s ease',
+                          }}
+                        >
+                          <span style={{ fontSize: '18px' }}>{c.icon}</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700 }}>{c.name}</span>
+                          <span style={{
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            padding: '1px 6px',
+                            borderRadius: '6px',
+                            background: isSelected ? 'var(--violet)' : 'rgba(255,255,255,0.06)',
+                            color: isSelected ? '#fff' : 'var(--muted)'
+                          }}>
+                            {c.token}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: '32px',
                   fontWeight: 700,
                   color: 'var(--ink)',
-                  margin: '20px 0 8px',
+                  margin: '16px 0 6px',
                 }}>
-                  {paymentAmount} USDC
+                  {paymentAmount} {selectedChain.token}
                 </div>
-                <p style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '24px' }}>
-                  Base Mainnet on-chain creation &amp; bonding curve stake
+                <p style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '22px' }}>
+                  {selectedChain.name} on-chain creation &amp; bonding curve stake
                 </p>
                 <button 
                   className="btn btn-primary btn-lg" 
@@ -994,7 +1092,7 @@ export default function LandingPage() {
                   id="confirm-payment-btn"
                   onClick={handleConfirmPayment}
                 >
-                  CONFIRM &amp; MINT ON BASE
+                  CONFIRM &amp; MINT ON {selectedChain.name.toUpperCase()}
                 </button>
               </div>
             )}

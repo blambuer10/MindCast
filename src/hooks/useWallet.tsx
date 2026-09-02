@@ -190,10 +190,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const getUSDCBalance = useCallback(async (userAddress: string, provider: BrowserProvider, currentChainId?: string) => {
     try {
-      const activeChain = currentChainId || chainId || '84532';
-      let usdcAddress = chainConfig?.chains?.[activeChain]?.tokens?.USDC;
+      const activeChain = currentChainId || chainId || '8453';
+      let usdcAddress = chainConfig?.chains?.[activeChain]?.tokens?.USDC || chainConfig?.chains?.[activeChain]?.tokens?.USDG;
       if (!usdcAddress) {
-        usdcAddress = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || (activeChain === '8453' ? '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' : '0x036CbD53842c5426634e7929541eC2318f3dCF7e');
+        if (activeChain === '143') {
+          usdcAddress = '0x754704Bc059F8C67012fEd69BC8A327a5aafb603';
+        } else if (activeChain === '4663') {
+          usdcAddress = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168';
+        } else if (activeChain === '8453') {
+          usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+        } else {
+          usdcAddress = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+        }
       }
       const contract = new Contract(usdcAddress, ['function balanceOf(address account) view returns (uint256)'], provider);
       const bal = await contract.balanceOf(userAddress);
@@ -349,6 +357,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
               rpcUrls: ['https://mainnet.base.org'],
               blockExplorerUrls: ['https://basescan.org'],
             },
+            143: {
+              chainId: '0x8f',
+              chainName: 'Monad Mainnet',
+              nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
+              rpcUrls: ['https://rpc.monad.xyz', 'https://rpc1.monad.xyz'],
+              blockExplorerUrls: ['https://monadscan.com'],
+            },
+            4663: {
+              chainId: '0x1237',
+              chainName: 'Robinhood Chain',
+              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+              rpcUrls: ['https://rpc.mainnet.chain.robinhood.com'],
+              blockExplorerUrls: ['https://robinhoodchain.blockscout.com'],
+            },
             84532: {
               chainId: '0x14a34',
               chainName: 'Base Sepolia',
@@ -389,9 +411,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     const provider = new BrowserProvider(eth, 'any');
     const signer = await provider.getSigner();
 
-    let usdcAddress = chainConfig?.chains?.[chainId]?.tokens?.USDC;
+    let usdcAddress = chainConfig?.chains?.[chainId]?.tokens?.USDC || chainConfig?.chains?.[chainId]?.tokens?.USDG;
     if (!usdcAddress) {
-      usdcAddress = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || (chainId === '8453' ? '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' : '0x036CbD53842c5426634e7929541eC2318f3dCF7e');
+      if (chainId === '143') {
+        usdcAddress = '0x754704Bc059F8C67012fEd69BC8A327a5aafb603'; // Monad Native USDC
+      } else if (chainId === '4663') {
+        usdcAddress = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168'; // Robinhood USDG / USDC
+      } else if (chainId === '8453') {
+        usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'; // Base Mainnet Native USDC
+      } else {
+        usdcAddress = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+      }
     }
     const contract = new Contract(usdcAddress, USDC_ABI, signer);
 
