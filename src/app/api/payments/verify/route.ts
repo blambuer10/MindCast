@@ -67,13 +67,14 @@ export async function POST(request: NextRequest) {
 
     // ─── Create Payment Record ───
     const recipientAddress = process.env.PAYMENT_RECIPIENT_ADDRESS || '0x0000000000000000000000000000000000000000';
+    const tokenSymbol = chain === 'robinhood' ? 'USDG' : 'USDC';
     const payment = createPayment({
       userId: user.id,
       ideaId,
       chain,
       txHash,
       amount: process.env.PAYMENT_AMOUNT || '1',
-      token: 'USDC',
+      token: tokenSymbol,
       recipient: recipientAddress,
       status: PaymentStatus.VERIFYING,
     });

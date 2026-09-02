@@ -154,13 +154,16 @@ export function getDb(): Database.Database {
       db.prepare(`
         INSERT OR REPLACE INTO evidence (
           id, agent_id, claim, direction, source_url, source_name, source_type,
+          source, title, url,
           discovered_at, reliability_score, relevance_score, strength_score, confidence_impact, status, created_at
         ) VALUES (
           ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?,
           datetime('now'), ?, 90.0, 85.0, ?, 'VERIFIED', datetime('now')
         )
       `).run(
         e.id, agentId, e.claim, e.direction, e.source_url, e.source_name, e.source_type,
+        e.source_name, e.claim, e.source_url,
         e.reliability, e.impact
       );
     }
