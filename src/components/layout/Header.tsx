@@ -41,6 +41,30 @@ export default function Header() {
         <Link href="/explore">Explore</Link>
         <Link href="/#arena">Debates</Link>
         <Link href="/docs">Docs</Link>
+        <a
+          href="https://mycai.pro/mindcast-node"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            color: "#00f0ff",
+            fontSize: "12px",
+            fontWeight: 700,
+            fontFamily: "var(--font-mono)",
+            padding: "4px 10px",
+            borderRadius: "6px",
+            background: "rgba(0, 240, 255, 0.08)",
+            border: "1px solid rgba(0, 240, 255, 0.3)",
+            textDecoration: "none",
+            transition: "all 0.2s"
+          }}
+          title="Deposit $MIND to claim MYCA Genesis Spore Node NFT (Robinhood Chain)"
+        >
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#00f0ff", boxShadow: "0 0 6px #00f0ff" }}></span>
+          Node Portal ↗
+        </a>
         {isConnected && address && (
           <Link href={`/profile/${address}`}>Profile</Link>
         )}
