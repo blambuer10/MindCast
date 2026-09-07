@@ -186,7 +186,7 @@ async function runAudit() {
     token: 'USDC',
     chain: 'BASE',
     recipient: '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2',
-    txHash: '0x2222222222222222222222222222222222222222222222222222222222222222',
+    txHash: '0x2222' + Date.now().toString(16).padStart(60, '0'),
     status: PaymentStatus.PENDING
   });
   assert('Payment', 'Payment record initialized as PENDING', paymentRecord.status === PaymentStatus.PENDING);

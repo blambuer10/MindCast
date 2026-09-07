@@ -411,15 +411,24 @@ export function createEvidence(data: Omit<Evidence, 'id' | 'discoveredAt'>): Evi
   const impact = data.confidenceImpact ?? 0;
   const status = data.status || 'NEW';
 
+  const legacySource = sourceName || 'Web';
+  const legacyTitle = claim || 'Evidence';
+  const legacyUrl = sourceUrl || 'https://mindcast.fun';
+  const legacySnippet = claim || '';
+  const legacyStance = direction;
+  const legacyRelevance = (relevance > 1 ? relevance / 100 : relevance) || 0.5;
+
   db.prepare(`
     INSERT INTO evidence (
-      id, agent_id, claim, direction, source_url, source_name, source_type, 
+      id, agent_id, source, title, url, snippet, retrieved_at, relevance, stance,
+      claim, direction, source_url, source_name, source_type, 
       published_at, discovered_at, reliability_score, relevance_score, 
       strength_score, confidence_impact, status, created_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    id, data.agentId, claim, direction, sourceUrl, sourceName, sourceType, 
+    id, data.agentId, legacySource, legacyTitle, legacyUrl, legacySnippet, now, legacyRelevance, legacyStance,
+    claim, direction, sourceUrl, sourceName, sourceType, 
     data.publishedAt ?? null, now, reliability, relevance, strength, impact, status, now
   );
 

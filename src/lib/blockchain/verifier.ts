@@ -6,8 +6,17 @@
 export async function verifyOnChainPayment(
   txHash: string,
   customExpectedAmount?: number
-): Promise<{ success: boolean; error?: string; chain?: string }> {
+): Promise<{ success: boolean; verified: boolean; error?: string; chain?: string }> {
   try {
+    // Strict hex format validation (0x + 64 hex characters)
+    if (!txHash || !/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+      return {
+        success: false,
+        verified: false,
+        error: 'Invalid transaction hash format. Must be a 66-character hex string starting with 0x.',
+      };
+    }
+
     const expectedAmount = customExpectedAmount !== undefined ? customExpectedAmount : parseFloat(process.env.PAYMENT_AMOUNT || '1.0');
 
     // Multi-RPC endpoints with fallback
@@ -47,7 +56,7 @@ export async function verifyOnChainPayment(
     const recipientTopics = validRecipients.map(padAddress);
 
     let lastError = '';
-    const maxAttempts = 6; // Poll up to ~9 seconds if tx was just broadcasted
+    const maxAttempts = 2; // Up to 2 attempts across endpoints
     const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -62,6 +71,7 @@ export async function verifyOnChainPayment(
               method: 'eth_getTransactionReceipt',
               params: [txHash],
             }),
+            signal: AbortSignal.timeout(2000),
           });
 
           if (!response.ok) continue;
@@ -71,7 +81,7 @@ export async function verifyOnChainPayment(
           if (!receipt) continue;
 
           if (receipt.status !== '0x1') {
-            return { success: false, error: `Transaction reverted/failed on ${rpc.name}` };
+            return { success: false, verified: false, error: `Transaction reverted/failed on ${rpc.name}` };
           }
 
           // Search logs for valid USDC Transfer
@@ -97,32 +107,34 @@ export async function verifyOnChainPayment(
                   else if (rpc.name.includes('Robinhood')) chainLabel = 'Robinhood Chain';
                   else if (rpc.name.includes('Sepolia')) chainLabel = 'Base Sepolia';
 
-                  return { success: true, chain: chainLabel };
+                  return { success: true, verified: true, chain: chainLabel };
                 } else {
                   return {
                     success: false,
+                    verified: false,
                     error: `Transfer amount too low. Expected ${expectedAmount} USDC, received ${transferAmount} USDC.`,
                   };
                 }
               }
             }
           }
-        } catch (err: any) {
-          lastError = err.message;
+        } catch (_err: any) {
+          // Individual RPC network or timeout error, continue to remaining endpoints
         }
       }
 
-      // If not found yet and still within max attempts, wait 1.5s for block propagation
+      // If not found yet and still within max attempts, wait 1s for block propagation
       if (attempt < maxAttempts) {
-        await sleep(1500);
+        await sleep(1000);
       }
     }
 
     return {
       success: false,
-      error: lastError || 'Transaction not found on Base, Monad, or Robinhood Chain. Please wait 5-10 seconds for block confirmations and try again.',
+      verified: false,
+      error: 'Transaction not found on Base, Monad, or Robinhood Chain. Please wait 5-10 seconds for block confirmations and try again.',
     };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Unknown verification error' };
+    return { success: false, verified: false, error: err.message || 'Unknown verification error' };
   }
 }
