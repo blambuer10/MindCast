@@ -28,7 +28,13 @@ export interface NodeValidatorMetadata {
 }
 
 // In-memory semantic cache & compute avoidance store
-const semanticMemoryCache = new Map<string, { content: string; hash: string; timestamp: number }>();
+interface SemanticCacheItem {
+  key: string;
+  content: string;
+  hash: string;
+  timestamp: number;
+}
+const semanticMemoryCache = new Map<string, SemanticCacheItem>();
 
 export class MycaProvider {
   private endpoint: string;
@@ -101,6 +107,7 @@ export class MycaProvider {
           const responseText = data.choices?.[0]?.message?.content || "";
           if (responseText) {
             semanticMemoryCache.set(cacheKey, {
+              key: prompt,
               content: responseText,
               hash: cacheKey,
               timestamp: Date.now(),
@@ -144,6 +151,7 @@ export class MycaProvider {
   async storeMemory(key: string, content: string, metadata?: Record<string, unknown>): Promise<void> {
     const hash = this.computeQueryHash(key);
     semanticMemoryCache.set(hash, {
+      key,
       content,
       hash,
       timestamp: Date.now(),
@@ -155,10 +163,22 @@ export class MycaProvider {
    */
   async retrieveMemory(query: string, limit: number = 3): Promise<Array<{ content: string; score: number }>> {
     const results: Array<{ content: string; score: number }> = [];
+    const directHash = this.computeQueryHash(query);
+    const exactHit = semanticMemoryCache.get(directHash);
+    if (exactHit) {
+      results.push({ content: exactHit.content, score: 1.0 });
+      if (limit === 1) return results;
+    }
+
     const queryLower = query.toLowerCase();
 
     for (const [_, item] of semanticMemoryCache.entries()) {
-      if (item.content.toLowerCase().includes(queryLower)) {
+      if (item.hash === directHash) continue; // Already added
+      if (
+        item.key.toLowerCase().includes(queryLower) ||
+        queryLower.includes(item.key.toLowerCase()) ||
+        item.content.toLowerCase().includes(queryLower)
+      ) {
         results.push({ content: item.content, score: 0.95 });
         if (results.length >= limit) break;
       }

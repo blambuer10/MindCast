@@ -91,11 +91,44 @@ export async function analyzeMind(agentId: string): Promise<void> {
     const cachedMemory = await mycaProvider.retrieveMemory(agent.thesis, 1);
     if (cachedMemory && cachedMemory.length > 0) {
       console.log(`[MindEngine] Compute Avoidance HIT for thesis "${agent.thesis.slice(0, 40)}": Reusing cached analysis (0.00$ compute spent).`);
-      createAgentEvent(
-        agentId,
-        AgentEventType.NEW_EVIDENCE,
-        `[MYCA Compute Avoidance] Semantic cache resolved thesis analysis with 0.00$ external compute overhead.`
-      );
+      
+      try {
+        const cachedAnalysis = JSON.parse(cachedMemory[0].content);
+        if (cachedAnalysis && cachedAnalysis.arguments) {
+          updateAgentConfidence(agentId, cachedAnalysis.initialConfidence || 50);
+          updateAgentAnalysis(agentId, cachedAnalysis.assumptions || [], cachedAnalysis.strengths || [], cachedAnalysis.weaknesses || []);
+          
+          for (const arg of cachedAnalysis.arguments) {
+            createArgument(agentId, arg.content, [], arg.strength || 0.7);
+          }
+          for (const ca of (cachedAnalysis.counterArguments || [])) {
+            createAgentEvent(agentId, AgentEventType.COUNTER_ARGUMENT_FOUND, ca);
+          }
+          
+          createAgentEvent(
+            agentId,
+            AgentEventType.NEW_EVIDENCE,
+            `[MYCA Compute Avoidance] Semantic cache resolved thesis analysis with 0.00$ external compute overhead (Zero-Cost DePIN Inference).`
+          );
+          createAgentEvent(
+            agentId,
+            AgentEventType.INITIAL_ANALYSIS,
+            `Initial analysis complete via MYCA Semantic Cache. ${cachedAnalysis.arguments.length} arguments formed. Confidence: ${cachedAnalysis.initialConfidence || 50}% (0.00$ compute overhead).`,
+            undefined,
+            50,
+            cachedAnalysis.initialConfidence || 50
+          );
+          
+          createAgentEvent(
+            agentId,
+            AgentEventType.MIND_SLEEPING,
+            'Mind is entering sleep state, actively monitoring external developments and waiting for debates.'
+          );
+          return; // Skip external compute call completely!
+        }
+      } catch (parseErr) {
+        console.warn("[MindEngine] Cached memory parse fallback:", parseErr);
+      }
     }
   } catch (err) {
     console.warn("[MindEngine] Semantic memory check skipped:", err);
@@ -130,6 +163,14 @@ export async function analyzeMind(agentId: string): Promise<void> {
   }
 
   const analysis = await ai.analyze(agent.thesis);
+
+  // Store into MYCA Semantic Memory Cache for future compute avoidance
+  try {
+    await mycaProvider.storeMemory(agent.thesis, JSON.stringify(analysis));
+    console.log(`[MindEngine] Stored analysis in MYCA Semantic Memory Cache for "${agent.thesis.slice(0, 30)}..."`);
+  } catch (cacheErr) {
+    console.warn("[MindEngine] Failed to store analysis in MYCA memory:", cacheErr);
+  }
 
   // Update agent with analysis results
   updateAgentConfidence(agentId, analysis.initialConfidence);
