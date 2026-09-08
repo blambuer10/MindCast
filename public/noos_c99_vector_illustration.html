@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MindCast Noos Dual-Core Illustration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    width: 1920px;
+    height: 1080px;
+    background-color: #F8F5EE;
+    background-image: 
+      radial-gradient(#E8E1D5 1.5px, transparent 1.5px),
+      linear-gradient(to right, rgba(230, 223, 212, 0.4) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(230, 223, 212, 0.4) 1px, transparent 1px);
+    background-size: 32px 32px, 120px 120px, 120px 120px;
+    color: #1A1714;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 56px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Decorative border */
+  .frame-border {
+    position: absolute;
+    inset: 24px;
+    border: 1.5px solid #E2D9CC;
+    border-radius: 20px;
+    pointer-events: none;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1.5px solid #E6DFD4;
+    padding-bottom: 24px;
+    position: relative;
+    z-index: 2;
+  }
+  .brand-left {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .logo-text {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #1A1714;
+  }
+  .logo-sub {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #7B5CFF;
+    background: #EDE7FF;
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: #6B645C;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #FFFFFF;
+    border: 1px solid #E6DFD4;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-weight: 600;
+    color: #2F7D4A;
+    box-shadow: 0 2px 4px rgba(26,23,20,0.03);
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #2F7D4A;
+  }
+
+  /* Main Title Area */
+  .hero-headline {
+    text-align: center;
+    margin: 16px 0 24px;
+    position: relative;
+    z-index: 2;
+  }
+  .hero-title {
+    font-family: 'Fraunces', serif;
+    font-size: 58px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: #1A1714;
+  }
+  .hero-title span.highlight {
+    color: #7B5CFF;
+    font-style: italic;
+  }
+  .hero-subtitle {
+    font-size: 20px;
+    color: #6B645C;
+    margin-top: 10px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  /* Dual-Core Architecture Stage */
+  .architecture-stage {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    margin-bottom: 24px;
+  }
+
+  /* Left Core Card: 0G Compute */
+  .core-card {
+    flex: 1;
+    height: 480px;
+    background: #FFFFFF;
+    border: 2px solid #E6DFD4;
+    border-radius: 24px;
+    padding: 36px 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 16px 36px -12px rgba(26,23,20,0.06);
+    position: relative;
+  }
+  .core-card.og-card {
+    border-top: 6px solid #7B5CFF;
+  }
+  .core-card.c99-card {
+    border-top: 6px solid #D97706;
+  }
+
+  .card-badge-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-engine-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 6px 12px;
+    border-radius: 8px;
+  }
+  .og-tag {
+    background: #EDE7FF;
+    color: #7B5CFF;
+    border: 1px solid #D9CEFF;
+  }
+  .c99-tag {
+    background: #FEF3C7;
+    color: #B45309;
+    border: 1px solid #FDE68A;
+  }
+  .card-role {
+    font-size: 13px;
+    color: #6B645C;
+    font-weight: 500;
+  }
+
+  .card-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex: 1;
+    margin: 16px 0;
+  }
+  .card-h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #1A1714;
+    margin-top: 14px;
+  }
+  .card-desc {
+    font-size: 14px;
+    color: #6B645C;
+    line-height: 1.5;
+    margin-top: 6px;
+    max-width: 360px;
+  }
+
+  .card-spec-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    border-top: 1px solid #F0EAE1;
+    padding-top: 18px;
+  }
+  .spec-item {
+    background: #FBF7F0;
+    border: 1px solid #EBE4D8;
+    border-radius: 10px;
+    padding: 10px 14px;
+    text-align: left;
+  }
+  .spec-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #8C827A;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .spec-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1A1714;
+    margin-top: 2px;
+  }
+
+  /* Center Conduit */
+  .center-conduit {
+    width: 380px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+  }
+  .conduit-stream {
+    width: 100%;
+    height: 48px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  .conduit-line {
+    position: absolute;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #7B5CFF 0%, #D97706 100%);
+    border-radius: 3px;
+  }
+  .conduit-pulse {
+    position: absolute;
+    padding: 6px 14px;
+    background: #FFFFFF;
+    border: 2px solid #7B5CFF;
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #7B5CFF;
+    box-shadow: 0 4px 12px rgba(123,92,255,0.15);
+  }
+
+  .telemetry-box {
+    width: 100%;
+    background: #FFFFFF;
+    border: 1.5px solid #E6DFD4;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 10px 24px -8px rgba(26,23,20,0.05);
+    text-align: left;
+  }
+  .tel-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #6B645C;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .tel-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-top: 1px dashed #EBE4D8;
+    font-size: 13px;
+  }
+  .tel-k {
+    color: #6B645C;
+    font-weight: 500;
+  }
+  .tel-v {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+  }
+  .v-green { color: #2F7D4A; }
+  .v-violet { color: #7B5CFF; }
+  .v-gold { color: #B45309; }
+
+  /* Live Case Study Ribbon */
+  .case-study-pill {
+    margin-top: 16px;
+    background: #F3EEE3;
+    border: 1px solid #E2D9CC;
+    border-radius: 12px;
+    padding: 10px 14px;
+    width: 100%;
+    text-align: left;
+  }
+  .cs-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #1A1714;
+  }
+  .cs-thesis {
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    font-style: italic;
+    color: #1A1714;
+    margin-top: 4px;
+  }
+
+  /* Footer */
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1.5px solid #E6DFD4;
+    padding-top: 20px;
+    font-size: 14px;
+    color: #6B645C;
+    position: relative;
+    z-index: 2;
+  }
+  .footer-left {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .flywheel-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #FFFFFF;
+    border: 1px solid #E6DFD4;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1A1714;
+  }
+  .footer-right {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: #1A1714;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="frame-border"></div>
+
+<!-- Header -->
+<div class="header">
+  <div class="brand-left">
+    <!-- Inline NOOS Mark SVG -->
+    <svg width="42" height="46" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Antenna Orb -->
+      <circle cx="50" cy="8.5" r="5" fill="#7B5CFF"/>
+      <!-- Soft Cloud Body -->
+      <path d="M 50 18 C 68 18 80 32 80 48 C 80 54 78 60 76 64 C 85 68 91 76 91 85 C 91 96 82 103 69 103 C 62 103 57 100 52 96 C 47 100 40 103 33 102 C 20 100 12 90 12 79 C 12 71 18 63 26 60 C 22 55 20 49 20 44 C 20 30 32 18 50 18 Z" fill="#FBF7F0" stroke="#7B5CFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Violet Eye -->
+      <circle cx="42.5" cy="51" r="13" fill="#7B5CFF"/>
+    </svg>
+    <div class="logo-text">MindCast</div>
+    <div class="logo-sub">NOOSPHERE OS</div>
+  </div>
+  <div class="header-right">
+    <span>DUAL-CORE PARADIGM v3.4</span>
+    <span>•</span>
+    <span>CHAIN ID: 108</span>
+    <div class="status-pill">
+      <span class="status-dot"></span>
+      <span>C99 RESONANCE ACTIVE</span>
+    </div>
+  </div>
+</div>
+
+<!-- Hero Headline -->
+<div class="hero-headline">
+  <h1 class="hero-title">IDEAS, ALIVE. <span class="highlight">The Dual-Core Engine</span></h1>
+  <p class="hero-subtitle">Decoupling Generative AI Synthesis from Microsecond Deterministic Settlement</p>
+</div>
+
+<!-- Architecture Stage -->
+<div class="architecture-stage">
+
+  <!-- Core 1: 0G Decentralized AI -->
+  <div class="core-card og-card">
+    <div class="card-badge-row">
+      <span class="card-engine-tag og-tag">0G COMPUTE ENGINE</span>
+      <span class="card-role">The Creative Mind</span>
+    </div>
+
+    <div class="card-content">
+      <!-- Neural Network Vector Graphic -->
+      <svg width="150" height="150" viewBox="0 0 160 160" fill="none">
+        <circle cx="80" cy="80" r="70" fill="#EDE7FF" fill-opacity="0.5" stroke="#7B5CFF" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <!-- Nodes -->
+        <circle cx="80" cy="40" r="8" fill="#7B5CFF"/>
+        <circle cx="40" cy="70" r="7" fill="#7B5CFF"/>
+        <circle cx="120" cy="70" r="7" fill="#7B5CFF"/>
+        <circle cx="50" cy="115" r="8" fill="#7B5CFF"/>
+        <circle cx="110" cy="115" r="8" fill="#7B5CFF"/>
+        <circle cx="80" cy="85" r="12" fill="#6A4AF0"/>
+        <!-- Interconnects -->
+        <line x1="80" y1="40" x2="40" y2="70" stroke="#7B5CFF" stroke-width="2.5" opacity="0.6"/>
+        <line x1="80" y1="40" x2="120" y2="70" stroke="#7B5CFF" stroke-width="2.5" opacity="0.6"/>
+        <line x1="80" y1="40" x2="80" y2="85" stroke="#7B5CFF" stroke-width="3" opacity="0.8"/>
+        <line x1="40" y1="70" x2="80" y2="85" stroke="#7B5CFF" stroke-width="2.5" opacity="0.7"/>
+        <line x1="120" y1="70" x2="80" y2="85" stroke="#7B5CFF" stroke-width="2.5" opacity="0.7"/>
+        <line x1="40" y1="70" x2="50" y2="115" stroke="#7B5CFF" stroke-width="2.5" opacity="0.5"/>
+        <line x1="120" y1="70" x2="110" y2="115" stroke="#7B5CFF" stroke-width="2.5" opacity="0.5"/>
+        <line x1="80" y1="85" x2="50" y2="115" stroke="#7B5CFF" stroke-width="2.5" opacity="0.7"/>
+        <line x1="80" y1="85" x2="110" y2="115" stroke="#7B5CFF" stroke-width="2.5" opacity="0.7"/>
+        <!-- Orbit rings -->
+        <circle cx="80" cy="85" r="22" stroke="#7B5CFF" stroke-width="1.5" opacity="0.3"/>
+      </svg>
+
+      <h2 class="card-h2">0G AI Deep Compute</h2>
+      <p class="card-desc">Ingests intuition and market data to construct rich dialectic theses, probability trees, and antitheses.</p>
+    </div>
+
+    <div class="card-spec-grid">
+      <div class="spec-item">
+        <div class="spec-label">Function</div>
+        <div class="spec-val">Synthesis & Modeling</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-label">Execution</div>
+        <div class="spec-val">Decentralized GPU</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center Bridge: Living Lattice DAG -->
+  <div class="center-conduit">
+    <div class="conduit-stream">
+      <div class="conduit-line"></div>
+      <div class="conduit-pulse">LIVING LATTICE DAG</div>
+    </div>
+
+    <div class="telemetry-box">
+      <div class="tel-title">
+        <span>C99 Performance Proof</span>
+        <span class="v-green">● VERIFIED</span>
+      </div>
+      <div class="tel-row">
+        <span class="tel-k">Referee Latency</span>
+        <span class="tel-v v-violet">4.95 µs (Silicon)</span>
+      </div>
+      <div class="tel-row">
+        <span class="tel-k">Compute Avoidance</span>
+        <span class="tel-v v-green">$0.00 (Cache Hit)</span>
+      </div>
+      <div class="tel-row">
+        <span class="tel-k">Arbitration Trust</span>
+        <span class="tel-v">Deterministic Hash</span>
+      </div>
+      <div class="tel-row">
+        <span class="tel-k">Identity Root</span>
+        <span class="tel-v v-gold">Silicon PUF DID</span>
+      </div>
+    </div>
+
+    <div class="case-study-pill">
+      <div class="cs-header">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1A1714" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span>Live Verified Case</span>
+      </div>
+      <div class="cs-thesis">"MindCast could reach $100M by October!"</div>
+    </div>
+  </div>
+
+  <!-- Core 2: MYCA C99 Safe-Sign Core -->
+  <div class="core-card c99-card">
+    <div class="card-badge-row">
+      <span class="card-engine-tag c99-tag">C99 SAFE-SIGN CORE</span>
+      <span class="card-role">The Mathematical Gavel</span>
+    </div>
+
+    <div class="card-content">
+      <!-- Silicon Microchip Vector Graphic -->
+      <svg width="150" height="150" viewBox="0 0 160 160" fill="none">
+        <!-- Chip Body -->
+        <rect x="35" y="35" width="90" height="90" rx="14" fill="#1A1714" stroke="#D97706" stroke-width="3"/>
+        <!-- Inner Core Plate -->
+        <rect x="50" y="50" width="60" height="60" rx="8" fill="#26221D" stroke="#F59E0B" stroke-width="1.5"/>
+        <!-- Circuit Traces Gold -->
+        <path d="M 62 62 L 72 72 L 88 72 L 98 62" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+        <path d="M 62 98 L 72 88 L 88 88 L 98 98" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="80" cy="80" r="7" fill="#F59E0B"/>
+        <!-- Outer Gold Pins -->
+        <!-- Top Pins -->
+        <line x1="55" y1="20" x2="55" y2="35" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="70" y1="20" x2="70" y2="35" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="90" y1="20" x2="90" y2="35" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="105" y1="20" x2="105" y2="35" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <!-- Bottom Pins -->
+        <line x1="55" y1="125" x2="55" y2="140" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="70" y1="125" x2="70" y2="140" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="90" y1="125" x2="90" y2="140" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="105" y1="125" x2="105" y2="140" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <!-- Left Pins -->
+        <line x1="20" y1="55" x2="35" y2="55" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="20" y1="70" x2="35" y2="70" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="20" y1="90" x2="35" y2="90" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="20" y1="105" x2="35" y2="105" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <!-- Right Pins -->
+        <line x1="125" y1="55" x2="140" y2="55" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="125" y1="70" x2="140" y2="70" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="125" y1="90" x2="140" y2="90" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+        <line x1="125" y1="105" x2="140" y2="105" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+
+      <h2 class="card-h2">MYCA C99 Safe-Sign</h2>
+      <p class="card-desc">Referees debates, calculates resonance scores in 4.95 µs, and signs cryptographic proofs without model drift.</p>
+    </div>
+
+    <div class="card-spec-grid">
+      <div class="spec-item">
+        <div class="spec-label">Speed</div>
+        <div class="spec-val">4.95 µs Latency</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-label">Security</div>
+        <div class="spec-val">Silicon PUF DID</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="footer-left">
+    <span class="flywheel-tag">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+      ROBINHOOD CHAIN FLYWHEEL: 80% $MIND BURN · 20% GENESIS YIELD
+    </span>
+    <span>Zero Gas Micro-Transactions</span>
+  </div>
+  <div class="footer-right">
+    <span>MINDCAST.FUN</span>
+    <span style="color:#7B5CFF">→</span>
+    <span>IDEAS, ALIVE.</span>
+  </div>
+</div>
+
+</body>
+</html>
