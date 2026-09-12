@@ -190,7 +190,7 @@ export default function DebatePage({ params }: { params: Promise<{ debateId: str
                 fontSize: 'var(--text-lg)',
                 fontStyle: 'italic',
                 margin: 'var(--space-4) 0',
-                color: 'var(--parchment)',
+                color: 'var(--ink)',
               }}>
                 &ldquo;{sides.a.idea.content}&rdquo;
               </p>
@@ -234,7 +234,7 @@ export default function DebatePage({ params }: { params: Promise<{ debateId: str
                 fontSize: 'var(--text-lg)',
                 fontStyle: 'italic',
                 margin: 'var(--space-4) 0',
-                color: 'var(--parchment)',
+                color: 'var(--ink)',
               }}>
                 &ldquo;{sides.b.idea.content}&rdquo;
               </p>
@@ -292,7 +292,7 @@ export default function DebatePage({ params }: { params: Promise<{ debateId: str
                         <span className="mind-id" style={{ marginBottom: 'var(--space-3)', display: 'block' }}>
                           {msg.agentId}
                         </span>
-                        <p style={{ color: 'var(--parchment)', lineHeight: 1.7, fontSize: 'var(--text-sm)' }}>
+                        <p style={{ color: 'var(--ink)', lineHeight: 1.7, fontSize: 'var(--text-sm)' }}>
                           {msg.content}
                         </p>
                       </div>

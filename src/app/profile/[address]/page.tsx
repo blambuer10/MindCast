@@ -202,7 +202,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                   fontFamily: 'var(--font-mono)',
                   fontSize: 'var(--text-lg)',
                   fontWeight: 600,
-                  color: 'var(--parchment)',
+                  color: 'var(--ink)',
                 }}>
                   @{address.slice(2, 8).toLowerCase()}
                 </span>
@@ -242,7 +242,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                 {/* Quick Stats */}
                 <div style={{ display: 'flex', gap: 'var(--space-6)' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--parchment)' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--ink)' }}>
                       {profile.stats.totalMinds}
                     </div>
                     <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>Minds</div>
@@ -320,7 +320,8 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{
                             fontSize: 'var(--text-sm)',
-                            color: 'var(--parchment)',
+                            color: 'var(--ink)',
+                            fontWeight: 500,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -332,7 +333,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                           <div style={{
                             width: '100%',
                             height: '6px',
-                            background: 'rgba(255,255,255,0.06)',
+                            background: 'var(--line)',
                             borderRadius: '3px',
                             overflow: 'hidden',
                           }}>
@@ -431,7 +432,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: 'var(--space-2) 0',
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    borderBottom: '1px solid var(--line)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                       <span style={{
@@ -445,7 +446,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                       <span style={{
                         fontFamily: 'var(--font-mono)',
                         fontSize: 'var(--text-xs)',
-                        color: 'var(--parchment)',
+                        color: 'var(--ink)',
                       }}>
                         {m.creatorAllocation}%
                       </span>
@@ -494,8 +495,9 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                         {m.agentId || 'MIND-????'}
                       </span>
                       <span className="badge" style={{
-                        background: m.ideaStatus === 'PUBLISHED' ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)',
+                        background: m.ideaStatus === 'PUBLISHED' ? 'rgba(47,125,74,0.12)' : 'var(--paper)',
                         color: m.ideaStatus === 'PUBLISHED' ? 'var(--success)' : 'var(--muted)',
+                        border: '1px solid var(--line)',
                         fontSize: '10px',
                       }}>
                         {m.lifecycleStatus || m.ideaStatus}
@@ -503,7 +505,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                     </div>
 
                     <p style={{
-                      color: 'var(--parchment)',
+                      color: 'var(--ink)',
                       fontSize: 'var(--text-sm)',
                       marginBottom: 'var(--space-4)',
                       lineHeight: 1.5,
@@ -514,7 +516,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                     {/* Mind Metrics Grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
                       <MetricCell label="Confidence" value={`${m.confidence}%`} color={m.confidence >= 70 ? 'var(--success)' : m.confidence >= 40 ? 'var(--accent)' : 'var(--muted)'} />
-                      <MetricCell label="Credibility" value={String(m.credibility)} color="var(--parchment)" />
+                      <MetricCell label="Credibility" value={String(m.credibility)} color="var(--ink)" />
                       <MetricCell label="Momentum" value={String(m.momentum)} color="var(--signal)" />
                       <MetricCell label="Value" value={`$${Math.round(m.estimatedValue).toLocaleString()}`} color="var(--success)" />
                     </div>
@@ -557,7 +559,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-xs)', textAlign: 'left' }}>
                     <thead>
-                      <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border)', color: 'var(--parchment)' }}>
+                      <tr style={{ background: 'var(--paper)', borderBottom: '1px solid var(--border)', color: 'var(--ink)' }}>
                         <th style={{ padding: 'var(--space-3) var(--space-4)' }}>Status</th>
                         <th style={{ padding: 'var(--space-3) var(--space-4)' }}>Amount</th>
                         <th style={{ padding: 'var(--space-3) var(--space-4)' }}>Network</th>
@@ -570,7 +572,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                       {profile.payments.map(p => {
                         const scanBase = p.chain === 'base' ? 'https://basescan.org' : 'https://sepolia.basescan.org';
                         return (
-                          <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                          <tr key={p.id} style={{ borderBottom: '1px solid var(--line)' }}>
                             <td style={{ padding: 'var(--space-3) var(--space-4)' }}>
                               <span className="badge" style={{
                                 background: p.status === 'CONFIRMED' ? 'rgba(74,222,128,0.15)' : 'rgba(234,179,8,0.15)',
@@ -580,7 +582,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                                 {p.status}
                               </span>
                             </td>
-                            <td style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 700, color: 'var(--parchment)', fontFamily: 'var(--font-mono)' }}>
+                            <td style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>
                               {p.amount} {p.token}
                             </td>
                             <td style={{ padding: 'var(--space-3) var(--space-4)', color: 'var(--muted)' }}>
@@ -647,13 +649,14 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                           </span>
                           <span className="badge" style={{
                             fontSize: '9px',
-                            background: 'rgba(255,255,255,0.05)',
+                            background: 'var(--paper)',
+                            border: '1px solid var(--line)',
                             color: 'var(--muted)',
                           }}>
                             {f.lifecycleStatus}
                           </span>
                         </div>
-                        <p style={{ color: 'var(--parchment)', fontSize: 'var(--text-sm)', margin: 0 }}>
+                        <p style={{ color: 'var(--ink)', fontSize: 'var(--text-sm)', margin: 0, lineHeight: 1.5 }}>
                           &ldquo;{f.content}&rdquo;
                         </p>
                         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginTop: 'var(--space-2)' }}>
@@ -691,8 +694,8 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                     display: 'flex',
                     gap: 'var(--space-4)',
                     padding: 'var(--space-3) var(--space-4)',
-                    background: 'rgba(255,255,255,0.01)',
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    background: 'var(--card-bg)',
+                    borderBottom: '1px solid var(--line)',
                   }}>
                     {/* Event Icon */}
                     <div style={{
@@ -724,7 +727,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                       </div>
                       <p style={{
                         fontSize: 'var(--text-xs)',
-                        color: 'var(--parchment)',
+                        color: 'var(--ink)',
                         margin: 0,
                         lineHeight: 1.5,
                         overflow: 'hidden',
@@ -777,7 +780,7 @@ function TrackRecordRow({ label, value, score }: { label: string; value: string;
       <span style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)', minWidth: '160px' }}>
         {label}
       </span>
-      <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
+      <div style={{ flex: 1, height: '4px', background: 'var(--line)', borderRadius: '2px', overflow: 'hidden' }}>
         <div style={{
           width: `${Math.min(100, score)}%`,
           height: '100%',
@@ -785,7 +788,7 @@ function TrackRecordRow({ label, value, score }: { label: string; value: string;
             ? 'var(--success)'
             : score >= 40
               ? 'var(--accent)'
-              : 'rgba(255,255,255,0.2)',
+              : 'var(--border)',
           borderRadius: '2px',
           transition: 'width 0.8s ease',
         }} />

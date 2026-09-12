@@ -48,7 +48,8 @@
   --signal: var(--violet);
   --signal-hover: var(--violet-hover);
   --signal-dim: var(--violet-soft);
-  --parchment: var(--paper);
+  --parchment: var(--ink);
+  --accent: #D97706;
 
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
