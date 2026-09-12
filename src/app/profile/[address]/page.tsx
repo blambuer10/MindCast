@@ -242,7 +242,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                 {/* Quick Stats */}
                 <div style={{ display: 'flex', gap: 'var(--space-6)' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--ink)' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 700, color: '#1A1714' }}>
                       {profile.stats.totalMinds}
                     </div>
                     <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>Minds</div>
@@ -319,13 +319,14 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{
-                            fontSize: 'var(--text-sm)',
-                            color: 'var(--ink)',
-                            fontWeight: 500,
+                            fontSize: '15px',
+                            color: '#1A1714',
+                            fontWeight: 600,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             marginBottom: '6px',
+                            lineHeight: 1.4,
                           }}>
                             {m.content}
                           </div>
@@ -333,7 +334,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                           <div style={{
                             width: '100%',
                             height: '6px',
-                            background: 'var(--line)',
+                            background: '#E6DFD4',
                             borderRadius: '3px',
                             overflow: 'hidden',
                           }}>
@@ -777,7 +778,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
 function TrackRecordRow({ label, value, score }: { label: string; value: string; score: number }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)', minWidth: '160px' }}>
+      <span style={{ fontSize: 'var(--text-sm)', color: '#1A1714', fontWeight: 600, minWidth: '160px' }}>
         {label}
       </span>
       <div style={{ flex: 1, height: '4px', background: 'var(--line)', borderRadius: '2px', overflow: 'hidden' }}>
