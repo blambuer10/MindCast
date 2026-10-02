@@ -11,13 +11,26 @@ let db: Database.Database | null = null;
 export function getDb(): Database.Database {
   if (db) return db;
 
-  const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'mindcast.db');
+  const fs = require('fs');
+  const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  const dbPath = process.env.DATABASE_PATH || (isServerless ? '/tmp/mindcast.db' : path.join(process.cwd(), 'data', 'mindcast.db'));
 
   // Ensure data directory exists
   const dir = path.dirname(dbPath);
-  const fs = require('fs');
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  } catch (_) {}
+
+  // In serverless, if /tmp/mindcast.db doesn't exist, try copying existing seed if present
+  if (isServerless && !fs.existsSync(dbPath)) {
+    try {
+      const bundledDb = path.join(process.cwd(), 'data', 'mindcast.db');
+      if (fs.existsSync(bundledDb)) {
+        fs.copyFileSync(bundledDb, dbPath);
+      }
+    } catch (_) {}
   }
 
   db = new Database(dbPath);
