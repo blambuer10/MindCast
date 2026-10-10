@@ -11,10 +11,16 @@ export const CREATE_TABLES = `
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   wallet_address TEXT NOT NULL UNIQUE,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  username TEXT UNIQUE,
+  display_name TEXT,
+  bio TEXT,
+  avatar_url TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_wallet ON users(wallet_address);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower ON users(LOWER(username));
 
 -- ─── Ideas ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS ideas (
@@ -504,6 +510,69 @@ CREATE TABLE IF NOT EXISTS data_access_audit_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_dataset ON data_access_audit_log(dataset_id);
+
+-- ─── Evidence Flags ───────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS evidence_flags (
+  id TEXT PRIMARY KEY,
+  evidence_id TEXT NOT NULL,
+  user_wallet TEXT,
+  reason TEXT NOT NULL,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (evidence_id) REFERENCES evidence(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_evidence_flags_ev ON evidence_flags(evidence_id);
+
+-- ─── Notification Preferences ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS notification_preferences (
+  user_wallet TEXT PRIMARY KEY,
+  frequency TEXT NOT NULL DEFAULT 'daily',
+  followed_minds_only INTEGER NOT NULL DEFAULT 1,
+  evidence_alerts INTEGER NOT NULL DEFAULT 1,
+  debate_alerts INTEGER NOT NULL DEFAULT 1,
+  prediction_alerts INTEGER NOT NULL DEFAULT 1,
+  weekly_digest INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ─── Argument Stakes (Polymarket-style Prediction Markets) ──────────────────
+CREATE TABLE IF NOT EXISTS argument_stakes (
+  id TEXT PRIMARY KEY,
+  argument_id TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  user_id TEXT,
+  user_wallet TEXT NOT NULL,
+  side TEXT NOT NULL CHECK (side IN ('SUPPORT', 'CHALLENGE')),
+  amount REAL NOT NULL,
+  token TEXT NOT NULL DEFAULT 'USDC',
+  tx_hash TEXT,
+  chain TEXT DEFAULT 'base',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (argument_id) REFERENCES arguments(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_arg_stakes_argument ON argument_stakes(argument_id);
+CREATE INDEX IF NOT EXISTS idx_arg_stakes_wallet ON argument_stakes(user_wallet);
+CREATE INDEX IF NOT EXISTS idx_arg_stakes_agent ON argument_stakes(agent_id);
+
+-- ─── Mind Research Compute Sponsorships ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS mind_sponsorships (
+  id TEXT PRIMARY KEY,
+  mind_id TEXT NOT NULL,
+  user_id TEXT,
+  user_wallet TEXT NOT NULL,
+  amount REAL NOT NULL,
+  token TEXT NOT NULL DEFAULT 'USDC',
+  message TEXT,
+  tx_hash TEXT,
+  chain TEXT DEFAULT 'base',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (mind_id) REFERENCES agents(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sponsorships_mind ON mind_sponsorships(mind_id);
+CREATE INDEX IF NOT EXISTS idx_sponsorships_wallet ON mind_sponsorships(user_wallet);
 
 -- ─── Schema Version ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS schema_version (

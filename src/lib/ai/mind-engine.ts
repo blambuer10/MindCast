@@ -497,26 +497,9 @@ export function getMindState(agentId: string): MindState | null {
   const agent = getAgent(agentId);
   if (!agent) return null;
 
-  let evidence = getEvidenceByAgent(agentId);
-  if (evidence.length === 0) {
-    try {
-      seedInitialEvidence(agentId, agent.thesis);
-      evidence = getEvidenceByAgent(agentId);
-    } catch (err) {
-      console.error(`[MindEngine] Failed to seed initial evidence for ${agentId}:`, err);
-    }
-  }
-
-  let arguments_ = getArgumentsByAgent(agentId);
-  if (arguments_.length === 0) {
-    try {
-      seedInitialArguments(agentId, agent.thesis, evidence.map(e => e.id));
-      arguments_ = getArgumentsByAgent(agentId);
-    } catch (err) {
-      console.error(`[MindEngine] Failed to seed initial arguments for ${agentId}:`, err);
-    }
-  }
-
+  // Retrieve authentic evidence and arguments only — never fabricate citations
+  const evidence = getEvidenceByAgent(agentId);
+  const arguments_ = getArgumentsByAgent(agentId);
   const events = getAgentEvents(agentId, 100);
 
   const supportingEvidence = evidence.filter(e => 

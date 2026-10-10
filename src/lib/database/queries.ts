@@ -26,17 +26,26 @@ import {
 
 // ─── Users ───────────────────────────────────────────────────────────────
 
+function mapUserRow(row: any): User {
+  return {
+    id: row.id as string,
+    walletAddress: (row.wallet_address || row.walletAddress) as string,
+    username: (row.username || null) as string | null,
+    displayName: (row.display_name || row.displayName || null) as string | null,
+    bio: (row.bio || null) as string | null,
+    avatarUrl: (row.avatar_url || row.avatarUrl || null) as string | null,
+    createdAt: (row.created_at || row.createdAt) as string,
+    updatedAt: (row.updated_at || row.updatedAt || null) as string | null,
+  };
+}
+
 export function findOrCreateUser(walletAddress: string): User {
   const db = getDb();
   const normalized = walletAddress.toLowerCase();
 
   const existing = db.prepare('SELECT * FROM users WHERE wallet_address = ?').get(normalized) as Record<string, unknown> | undefined;
   if (existing) {
-    return {
-      id: existing.id as string,
-      walletAddress: (existing.wallet_address || existing.walletAddress) as string,
-      createdAt: (existing.created_at || existing.createdAt) as string,
-    };
+    return mapUserRow(existing);
   }
 
   const id = generateId();
@@ -50,19 +59,116 @@ export function getUserByWallet(walletAddress: string): User | undefined {
   const db = getDb();
   const row = db.prepare('SELECT * FROM users WHERE wallet_address = ?').get(walletAddress.toLowerCase()) as Record<string, unknown> | undefined;
   if (!row) return undefined;
-  return {
-    id: row.id as string,
-    walletAddress: (row.wallet_address || row.walletAddress) as string,
-    createdAt: (row.created_at || row.createdAt) as string,
-  };
+  return mapUserRow(row);
 }
 
 export function getUserById(userId: string): User | undefined {
   const db = getDb();
-  const row = db.prepare('SELECT id, wallet_address as walletAddress, created_at as createdAt FROM users WHERE id = ?').get(userId) as Record<string, unknown> | undefined;
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as Record<string, unknown> | undefined;
   if (!row) return undefined;
-  return { id: row.id as string, walletAddress: row.walletAddress as string, createdAt: row.createdAt as string };
+  return mapUserRow(row);
 }
+
+export function getUserByUsername(username: string): User | undefined {
+  const db = getDb();
+  const clean = username.replace(/^@/, '').trim().toLowerCase();
+  if (!clean) return undefined;
+  const row = db.prepare('SELECT * FROM users WHERE LOWER(username) = ?').get(clean) as Record<string, unknown> | undefined;
+  if (!row) return undefined;
+  return mapUserRow(row);
+}
+
+export function getUserByIdentifier(identifier: string): User | undefined {
+  if (!identifier) return undefined;
+  const clean = identifier.trim();
+  // Check if wallet address
+  if (clean.startsWith('0x') && clean.length >= 20) {
+    return getUserByWallet(clean);
+  }
+  // Try username
+  const byUsername = getUserByUsername(clean);
+  if (byUsername) return byUsername;
+  // Fallback to wallet or ID
+  return getUserByWallet(clean) || getUserById(clean);
+}
+
+export function isUsernameAvailable(username: string, excludeWalletOrId?: string): { available: boolean; reason?: string } {
+  const clean = username.replace(/^@/, '').trim();
+  if (!clean || clean.length < 3) {
+    return { available: false, reason: 'Username must be at least 3 characters' };
+  }
+  if (clean.length > 24) {
+    return { available: false, reason: 'Username must be at most 24 characters' };
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(clean)) {
+    return { available: false, reason: 'Username can only contain letters, numbers, and underscores' };
+  }
+
+  const db = getDb();
+  const existing = db.prepare('SELECT id, wallet_address FROM users WHERE LOWER(username) = LOWER(?)').get(clean) as any;
+  if (!existing) {
+    return { available: true };
+  }
+
+  // If claimed by same user
+  if (excludeWalletOrId) {
+    const normExclude = excludeWalletOrId.toLowerCase();
+    if (existing.id === normExclude || existing.wallet_address.toLowerCase() === normExclude) {
+      return { available: true };
+    }
+  }
+
+  return { available: false, reason: 'This username is already taken' };
+}
+
+export function updateUserProfile(
+  walletAddress: string,
+  profile: { username?: string; displayName?: string; bio?: string; avatarUrl?: string }
+): { success: boolean; user?: User; error?: string } {
+  const db = getDb();
+  const normalizedWallet = walletAddress.toLowerCase();
+  const existingUser = findOrCreateUser(normalizedWallet);
+
+  let newUsername = existingUser.username;
+  if (profile.username !== undefined) {
+    const cleanUsername = profile.username.replace(/^@/, '').trim();
+    if (cleanUsername !== '') {
+      const check = isUsernameAvailable(cleanUsername, existingUser.id);
+      if (!check.available) {
+        return { success: false, error: check.reason || 'Username is not available' };
+      }
+      newUsername = cleanUsername;
+    } else {
+      newUsername = null;
+    }
+  }
+
+  const displayName = profile.displayName !== undefined ? (profile.displayName.trim() || null) : existingUser.displayName;
+  const bio = profile.bio !== undefined ? (profile.bio.trim() || null) : existingUser.bio;
+  const avatarUrl = profile.avatarUrl !== undefined ? (profile.avatarUrl.trim() || null) : existingUser.avatarUrl;
+  const now = new Date().toISOString();
+
+  try {
+    db.prepare(`
+      UPDATE users
+      SET username = ?,
+          display_name = ?,
+          bio = ?,
+          avatar_url = ?,
+          updated_at = ?
+      WHERE id = ?
+    `).run(newUsername, displayName, bio, avatarUrl, now, existingUser.id);
+
+    const updated = getUserById(existingUser.id);
+    return { success: true, user: updated };
+  } catch (err: any) {
+    if (err.message && err.message.includes('UNIQUE constraint failed')) {
+      return { success: false, error: 'This username is already taken by another user' };
+    }
+    return { success: false, error: err.message || 'Failed to update profile' };
+  }
+}
+
 
 // ─── Ideas ───────────────────────────────────────────────────────────────
 
@@ -119,17 +225,49 @@ export function getIdeasFeed(filters: FeedFilters): IdeaWithMind[] {
   const db = getDb();
   const offset = (filters.page - 1) * filters.limit;
 
+  const conditions: string[] = ["i.status = 'PUBLISHED'", "a.id IS NOT NULL"];
+  const params: any[] = [];
+
+  if (filters.tab === 'following' && filters.walletAddress) {
+    conditions.push(`EXISTS (
+      SELECT 1 FROM idea_follows f 
+      JOIN users u_f ON u_f.id = f.user_id 
+      WHERE f.idea_id = i.id AND LOWER(u_f.wallet_address) = LOWER(?)
+    )`);
+    params.push(filters.walletAddress);
+  } else if (filters.tab === 'my-minds' && filters.walletAddress) {
+    conditions.push(`LOWER(u.wallet_address) = LOWER(?)`);
+    params.push(filters.walletAddress);
+  }
+
+  if (filters.topic) {
+    conditions.push(`EXISTS (
+      SELECT 1 FROM mind_topics mt
+      JOIN topics t ON t.id = mt.topic_id
+      WHERE mt.mind_id = a.id AND (LOWER(t.name) = LOWER(?) OR LOWER(t.slug) = LOWER(?) OR t.id = ?)
+    )`);
+    params.push(filters.topic, filters.topic, filters.topic);
+  }
+
   let orderBy = 'i.published_at DESC';
-  if (filters.tab === 'trending') {
+  if (filters.tab === 'for-you') {
     orderBy = `(
+      COALESCE((SELECT COUNT(*) FROM evidence ev WHERE ev.agent_id = a.id), 0) * 4 +
+      COALESCE((SELECT COUNT(*) FROM arguments arg WHERE arg.agent_id = a.id), 0) * 5 +
       COALESCE((SELECT COUNT(*) FROM idea_follows f WHERE f.idea_id = i.id), 0) * 3 +
-      COALESCE((SELECT COUNT(*) FROM agent_events ae WHERE ae.agent_id = a.id AND ae.created_at > datetime('now', '-24 hours')), 0) * 5 +
-      COALESCE((SELECT COUNT(*) FROM debates d WHERE (d.idea_a = i.id OR d.idea_b = i.id) AND d.status = 'ACTIVE'), 0) * 10
-    ) DESC`;
+      (CASE WHEN a.confidence != 50.0 THEN 10 ELSE 0 END) +
+      (CASE WHEN a.lifecycle_status != 'INCUBATING' THEN 8 ELSE 0 END)
+    ) DESC, i.published_at DESC`;
+  } else if (filters.tab === 'trending') {
+    orderBy = `(
+      COALESCE((SELECT COUNT(*) FROM idea_follows f WHERE f.idea_id = i.id), 0) * 5 +
+      COALESCE((SELECT COUNT(*) FROM agent_events ae WHERE ae.agent_id = a.id AND ae.created_at > datetime('now', '-7 days')), 0) * 6 +
+      COALESCE((SELECT COUNT(*) FROM debates d WHERE (d.idea_a = i.id OR d.idea_b = i.id)), 0) * 10
+    ) DESC, i.published_at DESC`;
   } else if (filters.tab === 'debating') {
     orderBy = `(
-      SELECT COUNT(*) FROM debates d WHERE (d.idea_a = i.id OR d.idea_b = i.id) AND d.status = 'ACTIVE'
-    ) DESC`;
+      SELECT COUNT(*) FROM debates d WHERE (d.idea_a = i.id OR d.idea_b = i.id)
+    ) DESC, i.published_at DESC`;
   } else if (filters.tab === 'top-mcap') {
     orderBy = 'COALESCE(a.estimated_value, 0) DESC, a.credibility DESC';
   } else if (filters.tab === 'dex') {
@@ -141,9 +279,12 @@ export function getIdeasFeed(filters: FeedFilters): IdeaWithMind[] {
         ELSE 1
       END
     ) DESC, COALESCE(a.estimated_value, 0) DESC`;
+  } else {
+    // default recent
+    orderBy = 'i.published_at DESC';
   }
 
-  const rows = db.prepare(`
+  const sql = `
     SELECT
       i.*,
       a.id as agent_id_join,
@@ -161,14 +302,22 @@ export function getIdeasFeed(filters: FeedFilters): IdeaWithMind[] {
       u.wallet_address as creator_wallet,
       COALESCE((SELECT COUNT(*) FROM idea_follows f WHERE f.idea_id = i.id), 0) as follower_count,
       COALESCE((SELECT COUNT(*) FROM arguments arg WHERE arg.agent_id = a.id), 0) as argument_count,
-      COALESCE((SELECT COUNT(*) FROM evidence ev WHERE ev.agent_id = a.id), 0) as evidence_count
+      COALESCE((SELECT COUNT(*) FROM evidence ev WHERE ev.agent_id = a.id), 0) as evidence_count,
+      (SELECT t.name FROM mind_topics mt JOIN topics t ON t.id = mt.topic_id WHERE mt.mind_id = a.id LIMIT 1) as topic_name,
+      (SELECT t.slug FROM mind_topics mt JOIN topics t ON t.id = mt.topic_id WHERE mt.mind_id = a.id LIMIT 1) as topic_slug,
+      (SELECT ae.content FROM agent_events ae WHERE ae.agent_id = a.id ORDER BY ae.created_at DESC LIMIT 1) as latest_event_content,
+      (SELECT ae.created_at FROM agent_events ae WHERE ae.agent_id = a.id ORDER BY ae.created_at DESC LIMIT 1) as latest_event_created_at,
+      (SELECT ae.event_type FROM agent_events ae WHERE ae.agent_id = a.id ORDER BY ae.created_at DESC LIMIT 1) as latest_event_type
     FROM ideas i
-    LEFT JOIN agents a ON a.idea_id = i.id
+    INNER JOIN agents a ON a.idea_id = i.id
     LEFT JOIN users u ON u.id = i.creator_id
-    WHERE i.status = 'PUBLISHED'
+    WHERE ${conditions.join(' AND ')}
     ORDER BY ${orderBy}
     LIMIT ? OFFSET ?
-  `).all(filters.limit, offset) as Record<string, unknown>[];
+  `;
+
+  params.push(filters.limit, offset);
+  const rows = db.prepare(sql).all(...params) as Record<string, unknown>[];
 
   return rows.map(mapIdeaWithMind);
 }
@@ -469,23 +618,209 @@ export function getEvidenceByAgent(agentId: string): Evidence[] {
 
 // ─── Arguments ───────────────────────────────────────────────────────────
 
-export function createArgument(agentId: string, content: string, evidenceIds: string[], strength: number): Argument {
+export function createArgument(
+  agentId: string,
+  content: string,
+  evidenceIds: string[] = [],
+  strength: number = 0.5,
+  authorWallet?: string,
+  stance: 'SUPPORTING' | 'CHALLENGING' | 'QUESTION' = 'SUPPORTING'
+): Argument {
   const db = getDb();
   const id = generateId();
   const now = new Date().toISOString();
 
   db.prepare(`
-    INSERT INTO arguments (id, agent_id, content, supporting_evidence_ids, strength, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(id, agentId, content, toJson(evidenceIds), strength, now);
+    INSERT INTO arguments (id, agent_id, content, supporting_evidence_ids, strength, author_wallet, stance, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, agentId, content, toJson(evidenceIds), strength, authorWallet || null, stance, now);
 
-  return { id, agentId, content, supportingEvidenceIds: evidenceIds, strength, createdAt: now };
+  // Also log an agent event so it registers in the mind history
+  try {
+    createAgentEvent(
+      agentId,
+      AgentEventType.POSITION_UPDATED,
+      `New argument submitted (${stance}): "${content.slice(0, 100)}..."`,
+      authorWallet ? `Community (${authorWallet.slice(0, 6)}...${authorWallet.slice(-4)})` : 'AI Synthesis'
+    );
+  } catch (_) {}
+
+  return { id, agentId, content, supportingEvidenceIds: evidenceIds, strength, authorWallet, stance, createdAt: now };
 }
 
 export function getArgumentsByAgent(agentId: string): Argument[] {
   const db = getDb();
-  const rows = db.prepare('SELECT * FROM arguments WHERE agent_id = ? ORDER BY strength DESC').all(agentId) as Record<string, unknown>[];
+  const rows = db.prepare('SELECT * FROM arguments WHERE agent_id = ? ORDER BY created_at DESC').all(agentId) as Record<string, unknown>[];
   return rows.map(mapArgument);
+}
+
+export function flagEvidence(evidenceId: string, reason: string, notes?: string, userWallet?: string): { id: string; success: boolean } {
+  const db = getDb();
+  const id = generateId();
+  const now = new Date().toISOString();
+
+  db.prepare(`
+    INSERT INTO evidence_flags (id, evidence_id, user_wallet, reason, notes, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(id, evidenceId, userWallet || null, reason, notes || null, now);
+
+  return { id, success: true };
+}
+
+export function getNoospheres(): import('../types').NoosphereTopic[] {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT 
+      t.id,
+      t.name,
+      COALESCE(t.slug, LOWER(REPLACE(t.name, ' ', '-'))) as slug,
+      COALESCE(t.icon, '⚡') as icon,
+      COALESCE(t.description, 'Autonomous intellectual domain exploring emergent hypotheses and evidence.') as description,
+      COALESCE(t.questions, '[]') as questions,
+      (SELECT COUNT(DISTINCT mt.mind_id) FROM mind_topics mt WHERE mt.topic_id = t.id) as minds_count,
+      (
+        SELECT COUNT(DISTINCT f.user_id) 
+        FROM idea_follows f 
+        JOIN ideas i ON i.id = f.idea_id 
+        JOIN agents a ON a.idea_id = i.id 
+        JOIN mind_topics mt ON mt.mind_id = a.id 
+        WHERE mt.topic_id = t.id
+      ) as followers_count,
+      (
+        SELECT COUNT(*)
+        FROM debates d
+        JOIN agents a ON a.id = d.agent_a OR a.id = d.agent_b
+        JOIN mind_topics mt ON mt.mind_id = a.id
+        WHERE mt.topic_id = t.id
+      ) as recent_debates_count,
+      (
+        SELECT COUNT(*)
+        FROM evidence ev
+        JOIN mind_topics mt ON mt.mind_id = ev.agent_id
+        WHERE mt.topic_id = t.id
+      ) as recent_evidence_count
+    FROM topics t
+    ORDER BY minds_count DESC, t.name ASC
+  `).all() as Record<string, unknown>[];
+
+  return rows.map(r => ({
+    id: r.id as string,
+    name: r.name as string,
+    slug: r.slug as string,
+    icon: r.icon as string,
+    description: r.description as string,
+    questions: fromJson(r.questions as string) || [],
+    mindsCount: (r.minds_count as number) || 0,
+    followersCount: (r.followers_count as number) || 0,
+    recentDebatesCount: (r.recent_debates_count as number) || 0,
+    recentEvidenceCount: (r.recent_evidence_count as number) || 0,
+  }));
+}
+
+export function getActivityStream(walletAddress?: string, limit = 30) {
+  const db = getDb();
+  let whereClause = '';
+  const params: any[] = [];
+
+  if (walletAddress) {
+    whereClause = `
+      WHERE a.idea_id IN (
+        SELECT f.idea_id FROM idea_follows f
+        JOIN users u ON u.id = f.user_id
+        WHERE LOWER(u.wallet_address) = LOWER(?)
+      )
+    `;
+    params.push(walletAddress);
+  }
+
+  const sql = `
+    SELECT 
+      ae.id,
+      ae.agent_id,
+      ae.event_type,
+      ae.content,
+      ae.source,
+      ae.confidence_before,
+      ae.confidence_after,
+      ae.created_at,
+      a.thesis,
+      i.id as idea_id,
+      i.token_name,
+      i.token_ticker
+    FROM agent_events ae
+    JOIN agents a ON a.id = ae.agent_id
+    JOIN ideas i ON i.id = a.idea_id
+    ${whereClause}
+    ORDER BY ae.created_at DESC
+    LIMIT ?
+  `;
+
+  params.push(limit);
+  return db.prepare(sql).all(...params) as Array<{
+    id: string;
+    agent_id: string;
+    event_type: string;
+    content: string;
+    source: string | null;
+    confidence_before: number | null;
+    confidence_after: number | null;
+    created_at: string;
+    thesis: string;
+    idea_id: string;
+    token_name?: string;
+    token_ticker?: string;
+  }>;
+}
+
+export function getUserNotificationPreferences(walletAddress: string) {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM notification_preferences WHERE LOWER(user_wallet) = LOWER(?)').get(walletAddress) as any;
+  if (!row) {
+    return {
+      userWallet: walletAddress,
+      frequency: 'daily',
+      followedMindsOnly: true,
+      evidenceAlerts: true,
+      debateAlerts: true,
+      predictionAlerts: true,
+      weeklyDigest: true,
+    };
+  }
+  return {
+    userWallet: row.user_wallet,
+    frequency: row.frequency,
+    followedMindsOnly: Boolean(row.followed_minds_only),
+    evidenceAlerts: Boolean(row.evidence_alerts),
+    debateAlerts: Boolean(row.debate_alerts),
+    predictionAlerts: Boolean(row.prediction_alerts),
+    weeklyDigest: Boolean(row.weekly_digest),
+  };
+}
+
+export function saveUserNotificationPreferences(walletAddress: string, prefs: any) {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO notification_preferences (
+      user_wallet, frequency, followed_minds_only, evidence_alerts, debate_alerts, prediction_alerts, weekly_digest, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(user_wallet) DO UPDATE SET
+      frequency = excluded.frequency,
+      followed_minds_only = excluded.followed_minds_only,
+      evidence_alerts = excluded.evidence_alerts,
+      debate_alerts = excluded.debate_alerts,
+      prediction_alerts = excluded.prediction_alerts,
+      weekly_digest = excluded.weekly_digest,
+      updated_at = datetime('now')
+  `).run(
+    walletAddress.toLowerCase(),
+    prefs.frequency || 'daily',
+    prefs.followedMindsOnly !== false ? 1 : 0,
+    prefs.evidenceAlerts !== false ? 1 : 0,
+    prefs.debateAlerts !== false ? 1 : 0,
+    prefs.predictionAlerts !== false ? 1 : 0,
+    prefs.weeklyDigest !== false ? 1 : 0
+  );
+  return getUserNotificationPreferences(walletAddress);
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────
@@ -744,6 +1079,8 @@ function mapArgument(row: Record<string, unknown>): Argument {
     supportingEvidenceIds: fromJson(row.supporting_evidence_ids as string),
     strength: row.strength as number,
     createdAt: row.created_at as string,
+    authorWallet: (row.author_wallet as string) || undefined,
+    stance: (row.stance as any) || 'SUPPORTING',
   };
 }
 
@@ -792,13 +1129,19 @@ function mapDebateMessage(row: Record<string, unknown>): DebateMessage {
 
 function mapIdeaWithMind(row: Record<string, unknown>): IdeaWithMind {
   const idea = mapIdea(row);
+  const evidenceCount = (row.evidence_count as number) || 0;
+  const confidence = (row.confidence as number) || 50.0;
+  // Assessed only if evidence exists or confidence has been tuned from default 50
+  const isAssessed = evidenceCount > 0 || (confidence !== 50.0 && (row.calibration_score as number) !== 100);
+
   return {
     ...idea,
+    thesis: (row.thesis as string) || (row.content as string) || '',
     agent: row.agent_id_join ? {
       id: row.agent_id_join as string,
       ideaId: idea.id,
       thesis: row.thesis as string,
-      confidence: row.confidence as number,
+      confidence: confidence,
       credibility: row.credibility as number,
       systemPrompt: row.system_prompt as string,
       computeBudget: (row.compute_budget as number | null | undefined) ?? 1.0,
@@ -815,8 +1158,17 @@ function mapIdeaWithMind(row: Record<string, unknown>): IdeaWithMind {
     creator: { walletAddress: row.creator_wallet as string },
     followerCount: row.follower_count as number,
     argumentCount: row.argument_count as number,
-    evidenceCount: row.evidence_count as number,
+    evidenceCount: evidenceCount,
     momentum: calculateMomentum(row),
+    topic: (row.topic_name as string) || 'Artificial Intelligence',
+    topicName: (row.topic_name as string) || 'Artificial Intelligence',
+    topicSlug: (row.topic_slug as string) || 'artificial-intelligence',
+    isAssessed,
+    latestUpdate: row.latest_event_content ? {
+      content: row.latest_event_content as string,
+      createdAt: (row.latest_event_created_at as string) || new Date().toISOString(),
+      eventType: (row.latest_event_type as string) || 'UPDATE',
+    } : null,
   };
 }
 
@@ -1604,4 +1956,263 @@ export function getEarlySignals(): import('../types').EarlySignal[] {
     detectedAt: row.detected_at as string,
   }));
 }
+
+// ─── Argument Staking (Polymarket-style Prediction Markets) ──────────────────
+
+export function placeArgumentStake(params: {
+  argumentId: string;
+  agentId: string;
+  userWallet: string;
+  side: 'SUPPORT' | 'CHALLENGE';
+  amount: number;
+  token?: string;
+  txHash?: string;
+  chain?: string;
+}): import('../types').ArgumentStake {
+  const db = getDb();
+  const id = generateId();
+  const now = new Date().toISOString();
+  const user = findOrCreateUser(params.userWallet);
+
+  db.prepare(`
+    INSERT INTO argument_stakes (id, argument_id, agent_id, user_id, user_wallet, side, amount, token, tx_hash, chain, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    params.argumentId,
+    params.agentId,
+    user.id,
+    params.userWallet.toLowerCase(),
+    params.side,
+    params.amount,
+    params.token || 'USDC',
+    params.txHash || null,
+    params.chain || 'base',
+    now
+  );
+
+  // Record an event in agent_events
+  try {
+    const sideLabel = params.side === 'SUPPORT' ? 'SUPPORT' : 'CHALLENGE';
+    db.prepare(`
+      INSERT INTO agent_events (id, agent_id, event_type, content, source, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      generateId(),
+      params.agentId,
+      AgentEventType.STAKE_PLACED,
+      `Market Stake: $${params.amount.toFixed(2)} USDC placed on ${sideLabel} for argument ${params.argumentId.slice(0, 8)}`,
+      params.userWallet,
+      now
+    );
+  } catch (_) {}
+
+  return {
+    id,
+    argumentId: params.argumentId,
+    agentId: params.agentId,
+    userId: user.id,
+    userWallet: params.userWallet.toLowerCase(),
+    username: user.username,
+    side: params.side,
+    amount: params.amount,
+    token: params.token || 'USDC',
+    txHash: params.txHash || null,
+    chain: params.chain || 'base',
+    createdAt: now,
+  };
+}
+
+export function getArgumentMarketSummary(argumentId: string, userWallet?: string): import('../types').ArgumentMarketSummary {
+  const db = getDb();
+  const stakes = db.prepare(`
+    SELECT side, amount, user_wallet
+    FROM argument_stakes
+    WHERE argument_id = ?
+  `).all(argumentId) as Array<{ side: 'SUPPORT' | 'CHALLENGE'; amount: number; user_wallet: string }>;
+
+  // Seed dynamic baseline liquidity based on argument id hash so every argument starts with organic initial odds
+  let hashVal = 0;
+  for (let i = 0; i < argumentId.length; i++) {
+    hashVal = (hashVal + argumentId.charCodeAt(i) * (i + 1)) % 100;
+  }
+  const baselineSupport = 40.0 + (hashVal % 30); // 40-70
+  const baselineChallenge = 100.0 - baselineSupport;
+
+  let supportPool = baselineSupport;
+  let challengePool = baselineChallenge;
+  let userSupport = 0;
+  let userChallenge = 0;
+
+  const normalizedUser = userWallet?.toLowerCase();
+
+  for (const s of stakes) {
+    if (s.side === 'SUPPORT') {
+      supportPool += s.amount;
+      if (normalizedUser && s.user_wallet.toLowerCase() === normalizedUser) {
+        userSupport += s.amount;
+      }
+    } else {
+      challengePool += s.amount;
+      if (normalizedUser && s.user_wallet.toLowerCase() === normalizedUser) {
+        userChallenge += s.amount;
+      }
+    }
+  }
+
+  const totalPool = supportPool + challengePool;
+  const supportOdds = Math.round((supportPool / totalPool) * 100);
+  const challengeOdds = 100 - supportOdds;
+
+  // Implied odds multiplier (capped for sanity)
+  const supportMultiplier = supportPool > 0 ? Math.min(25, Number((totalPool / supportPool).toFixed(2))) : 2.0;
+  const challengeMultiplier = challengePool > 0 ? Math.min(25, Number((totalPool / challengePool).toFixed(2))) : 2.0;
+
+  let userStake: { side: 'SUPPORT' | 'CHALLENGE'; amount: number } | null = null;
+  if (userSupport > 0 || userChallenge > 0) {
+    userStake = userSupport >= userChallenge
+      ? { side: 'SUPPORT', amount: userSupport }
+      : { side: 'CHALLENGE', amount: userChallenge };
+  }
+
+  return {
+    argumentId,
+    supportPool: Number(supportPool.toFixed(2)),
+    challengePool: Number(challengePool.toFixed(2)),
+    totalPool: Number(totalPool.toFixed(2)),
+    supportOdds,
+    challengeOdds,
+    supportMultiplier,
+    challengeMultiplier,
+    totalStakers: stakes.length,
+    userStake,
+  };
+}
+
+export function getArgumentStakes(argumentId: string): import('../types').ArgumentStake[] {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT s.*, u.username
+    FROM argument_stakes s
+    LEFT JOIN users u ON u.wallet_address = s.user_wallet
+    WHERE s.argument_id = ?
+    ORDER BY s.created_at DESC
+    LIMIT 25
+  `).all(argumentId) as any[];
+
+  return rows.map(r => ({
+    id: r.id,
+    argumentId: r.argument_id,
+    agentId: r.agent_id,
+    userId: r.user_id,
+    userWallet: r.user_wallet,
+    username: r.username || null,
+    side: r.side,
+    amount: r.amount,
+    token: r.token,
+    txHash: r.tx_hash,
+    chain: r.chain,
+    createdAt: r.created_at,
+  }));
+}
+
+// ─── Mind Compute Sponsorships ─────────────────────────────────────────────
+
+export function sponsorMindCompute(params: {
+  mindId: string;
+  userWallet: string;
+  amount: number;
+  token?: string;
+  message?: string;
+  txHash?: string;
+  chain?: string;
+}): import('../types').MindSponsorship {
+  const db = getDb();
+  const id = generateId();
+  const now = new Date().toISOString();
+  const user = findOrCreateUser(params.userWallet);
+
+  db.prepare(`
+    INSERT INTO mind_sponsorships (id, mind_id, user_id, user_wallet, amount, token, message, tx_hash, chain, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    params.mindId,
+    user.id,
+    params.userWallet.toLowerCase(),
+    params.amount,
+    params.token || 'USDC',
+    params.message || null,
+    params.txHash || null,
+    params.chain || 'base',
+    now
+  );
+
+  // Increment compute budget & remaining on agent
+  try {
+    db.prepare(`
+      UPDATE agents
+      SET compute_budget = compute_budget + ?,
+          compute_remaining = compute_remaining + ?,
+          updated_at = datetime('now')
+      WHERE UPPER(id) = UPPER(?)
+    `).run(params.amount, params.amount, params.mindId);
+  } catch (_) {}
+
+  // Record an event in agent_events
+  try {
+    db.prepare(`
+      INSERT INTO agent_events (id, agent_id, event_type, content, source, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      generateId(),
+      params.mindId,
+      AgentEventType.MIND_SPONSORED,
+      `Sponsored $${params.amount.toFixed(2)} USDC compute${params.message ? `: "${params.message}"` : ''}`,
+      params.userWallet,
+      now
+    );
+  } catch (_) {}
+
+  return {
+    id,
+    mindId: params.mindId,
+    userId: user.id,
+    userWallet: params.userWallet.toLowerCase(),
+    username: user.username,
+    amount: params.amount,
+    token: params.token || 'USDC',
+    message: params.message || null,
+    txHash: params.txHash || null,
+    chain: params.chain || 'base',
+    createdAt: now,
+  };
+}
+
+export function getMindSponsorships(mindId: string): import('../types').MindSponsorship[] {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT s.*, u.username
+    FROM mind_sponsorships s
+    LEFT JOIN users u ON u.wallet_address = s.user_wallet
+    WHERE UPPER(s.mind_id) = UPPER(?)
+    ORDER BY s.created_at DESC
+    LIMIT 50
+  `).all(mindId) as any[];
+
+  return rows.map(r => ({
+    id: r.id,
+    mindId: r.mind_id,
+    userId: r.user_id,
+    userWallet: r.user_wallet,
+    username: r.username || null,
+    amount: r.amount,
+    token: r.token,
+    message: r.message,
+    txHash: r.tx_hash,
+    chain: r.chain,
+    createdAt: r.created_at,
+  }));
+}
+
 

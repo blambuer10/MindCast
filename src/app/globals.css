@@ -3,53 +3,64 @@
    "IDEAS, ALIVE."
    ============================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* Noos Brand Color System (Exact Hex) */
-  --paper: #F3EEE3;            /* Cream paper bg */
-  --paper-2: #FBF7F0;          /* Cream elevated card */
-  --surface: #FBF7F0;
-  --card: #FBF7F0;
-  --card-bg: #FBF7F0;
-  --ink: #1A1714;              /* Ink / primary text */
-  --muted: #6B645C;            /* Muted text */
-  --slate: #6B645C;
-  --line: #E6DFD4;             /* Line / border */
-  --border: #E6DFD4;
+  /* MINDCAST Dark Editorial System */
+  --bg-base: #05070A;           /* Dark graphite background */
+  --bg-surface: #0B0F14;        /* Elevated surface */
+  --bg-card: #0E131A;           /* Card container */
+  --bg-card-hover: #131A24;     /* Card hover */
+  --bg-elevated: #161E29;       /* Modals and popovers */
 
-  --violet: #7B5CFF;           /* Violet primary */
-  --violet-dark: #6A4AF0;      /* Violet hover */
-  --violet-hover: #6A4AF0;
-  --violet-soft: #EDE7FF;      /* Violet soft wash */
+  --paper: #05070A;            /* Dark graphite bg */
+  --paper-2: #0B0F14;          /* Elevated surface */
+  --surface: #0B0F14;
+  --card: #0E131A;
+  --card-bg: #0E131A;
+  --ink: #F0F4F8;              /* High-contrast off-white primary text */
+  --muted: #8B949E;            /* Muted gray */
+  --slate: #8B949E;
+  --line: rgba(255, 255, 255, 0.08); /* Subtle border */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(79, 195, 247, 0.5);
 
-  --success: #2F7D4A;          /* Success / supporting */
-  --supporting: #2F7D4A;
-  --error: #B42318;            /* Opposing / down */
-  --opposing: #B42318;
-  --coral: #B42318;
-  --lime: #2F7D4A;
-  --blue: #4A6CF7;
+  --cyan: #4FC3F7;             /* Primary electric blue accent */
+  --accent-cyan: #4FC3F7;
+  --accent-blue: #4FC3F7;
+  --violet: #818CF8;           /* Restrained violet secondary accent */
+  --violet-dark: #6366F1;
+  --violet-hover: #93C5FD;
+  --violet-soft: rgba(79, 195, 247, 0.12);
 
-  --night: #0E0C14;            /* Dark navy ONLY for Mind preview card interior */
-  --night-2: #161320;
-  --void: #0E0C14;
-  --deep: #161320;
+  --success: #10B981;          /* Supporting / verified */
+  --supporting: #10B981;
+  --error: #F43F5E;            /* Opposing / challenged */
+  --opposing: #F43F5E;
+  --warning: #F59E0B;          /* Contextual / pending */
+  --coral: #F43F5E;
+  --lime: #10B981;
+  --blue: #4FC3F7;
+
+  --night: #05070A;            /* Dark graphite */
+  --night-2: #0B0F14;
+  --void: #030407;
+  --deep: #080B10;
 
   /* Typography */
   --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --serif: "Fraunces", "Newsreader", Georgia, serif;
+  --serif: "Fraunces", "Playfair Display", Georgia, serif;
   --mono: "JetBrains Mono", "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --font-display: var(--serif);
   --font-body: var(--sans);
   --font-mono: var(--mono);
 
-  --signal: var(--violet);
-  --signal-hover: var(--violet-hover);
+  --signal: var(--cyan);
+  --signal-hover: var(--violet);
   --signal-dim: var(--violet-soft);
   --parchment: var(--ink);
-  --accent: #D97706;
+  --accent: #4FC3F7;
 
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -315,11 +326,12 @@ textarea::placeholder {
   font-weight: 600;
 }
 
-.primary-button {
+.primary-button,
+.btn-primary {
   min-height: 44px;
-  border: 0;
-  background: var(--violet);
-  color: #FBF7F0;
+  border: 1px solid rgba(79, 195, 247, 0.5);
+  background: var(--cyan);
+  color: #05070A;
   padding: 0 24px;
   font-weight: 600;
   font-size: 14px;
@@ -329,31 +341,37 @@ textarea::placeholder {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: none;
+  box-shadow: 0 0 16px rgba(79, 195, 247, 0.2);
   transition:
     transform 160ms var(--ease),
-    background 160ms ease-out;
+    background 160ms ease-out,
+    box-shadow 160ms ease-out;
 }
 
-.primary-button:hover:not(:disabled) {
-  background: var(--violet-hover);
+.primary-button:hover:not(:disabled),
+.btn-primary:hover:not(:disabled) {
+  background: #7AD3FA;
+  box-shadow: 0 0 24px rgba(79, 195, 247, 0.4);
   transform: translateY(-1px);
 }
 
-.primary-button:active:not(:disabled) {
+.primary-button:active:not(:disabled),
+.btn-primary:active:not(:disabled) {
   transform: translateY(0);
 }
 
-.primary-button:disabled {
-  opacity: 0.55;
+.primary-button:disabled,
+.btn-primary:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .secondary-button,
 .btn-secondary {
   min-height: 44px;
-  border: 1px solid var(--border);
-  background: var(--paper-2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--ink);
   padding: 0 20px;
   font-weight: 600;
@@ -373,8 +391,9 @@ textarea::placeholder {
 
 .secondary-button:hover:not(:disabled),
 .btn-secondary:hover:not(:disabled) {
-  border-color: var(--violet);
-  color: var(--violet);
+  border-color: rgba(79, 195, 247, 0.4);
+  background: rgba(79, 195, 247, 0.08);
+  color: #FFFFFF;
 }
 
 .hint {
@@ -1967,5 +1986,602 @@ details p {
   font-size: 13px;
   color: var(--muted);
   line-height: 1.5;
+}
+
+/* ============================================================================
+   MINDCAST Mobile Navigation & Feed Layouts
+   ============================================================================ */
+
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: rgba(11, 15, 20, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    align-items: center;
+    justify-content: space-around;
+    z-index: 1000;
+    padding: 0 4px;
+  }
+  
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: color 0.15s ease;
+  }
+  
+  .mobile-nav-item.active {
+    color: var(--cyan);
+  }
+
+  .mobile-nav-create-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--cyan);
+    color: #05070A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+    box-shadow: 0 0 12px rgba(79, 195, 247, 0.4);
+  }
+
+  .page-container {
+    padding-bottom: 80px !important;
+  }
+}
+
+/* Feed card enhancements */
+.feed-card {
+  background: var(--bg-card, #0E131A);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: 16px;
+  padding: 24px;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feed-card:hover {
+  border-color: rgba(79, 195, 247, 0.3);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+.feed-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.feed-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.feed-card-thesis {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+
+.feed-card-update {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.feed-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 14px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.feed-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.feed-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.badge-status {
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+
+.badge-status.exploring {
+  background: rgba(79, 195, 247, 0.12);
+  color: #4FC3F7;
+  border: 1px solid rgba(79, 195, 247, 0.3);
+}
+
+.badge-status.debating {
+  background: rgba(245, 158, 11, 0.12);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-status.proven,
+.badge-status.updated {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* ============================================================================
+   UFO TIMELINE INSPIRED ADAPTATION FOR MINDCAST ("IDEAS, ALIVE.")
+   ============================================================================ */
+
+/* --- Cyber-Editorial Hero Space --- */
+.ufo-intro-wrap {
+  position: relative;
+  background: radial-gradient(circle at 50% 30%, #0d1522 0%, #05070A 70%);
+  border-bottom: 1px solid var(--border);
+  padding: 80px 20px 48px;
+  overflow: hidden;
+  text-align: center;
+}
+
+.ufo-background-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  opacity: 0.15;
+  background-image:
+    linear-gradient(to right, rgba(79, 195, 247, 0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(79, 195, 247, 0.05) 1px, transparent 1px);
+  background-size: 80px 80px;
+}
+
+/* Dual Orbiting Radar Rings */
+.ufo-radar-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  width: 600px;
+  height: 600px;
+  pointer-events: none;
+  opacity: 0.25;
+}
+
+.ufo-orbit-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px dashed rgba(79, 195, 247, 0.4);
+}
+
+.ufo-orbit-outer {
+  top: 0;
+  left: 0;
+  width: 600px;
+  height: 600px;
+  animation: spinClockwise 45s linear infinite;
+}
+
+.ufo-orbit-inner {
+  top: 100px;
+  left: 100px;
+  width: 400px;
+  height: 400px;
+  border-style: solid;
+  border-color: rgba(129, 140, 248, 0.3);
+  animation: spinCounterClockwise 30s linear infinite;
+}
+
+.ufo-orbit-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4FC3F7;
+  box-shadow: 0 0 12px #4FC3F7;
+}
+
+@keyframes spinClockwise {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spinCounterClockwise {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+/* --- Cycling Headline --- */
+.ufo-headline {
+  font-family: var(--serif);
+  font-size: clamp(38px, 6vw, 76px);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  margin-bottom: 20px;
+  letter-spacing: -0.02em;
+}
+
+.ufo-headline strong {
+  color: #4FC3F7;
+  font-style: italic;
+  font-weight: 700;
+  background: linear-gradient(135deg, #4FC3F7 0%, #A5B4FC 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ufo-headline span {
+  color: #4FC3F7;
+}
+
+.ufo-subtext {
+  font-size: 16px;
+  color: var(--muted);
+  max-width: 580px;
+  margin: 0 auto 36px;
+  line-height: 1.6;
+}
+
+/* --- Domain Badges Grid --- */
+.ufo-categories-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: 980px;
+  margin: 0 auto 40px;
+  position: relative;
+  z-index: 2;
+}
+
+.ufo-cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background: rgba(11, 15, 20, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.ufo-cat-pill:hover,
+.ufo-cat-pill.active {
+  background: rgba(79, 195, 247, 0.1);
+  border-color: rgba(79, 195, 247, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(79, 195, 247, 0.12);
+}
+
+.ufo-cat-pill strong {
+  font-weight: 600;
+}
+
+.ufo-cat-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--cyan);
+}
+
+/* --- Infinite Epoch Marquee --- */
+.ufo-marquee-wrap {
+  width: 100%;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: #080B10;
+  padding: 12px 0;
+  position: relative;
+  z-index: 2;
+}
+
+.ufo-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marqueeRoll 32s linear infinite;
+  gap: 32px;
+}
+
+.ufo-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+.ufo-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.ufo-marquee-item strong {
+  color: var(--cyan);
+}
+
+@keyframes marqueeRoll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* --- Subheader & Calibration Meter --- */
+.ufo-subheader {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 60px;
+  z-index: 90;
+  padding: 14px 24px;
+}
+
+.ufo-subheader-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Circular Progress Meter */
+.ufo-progress-circle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ufo-progress-svg {
+  transform: rotate(-90deg);
+}
+
+.ufo-progress-meter-bg {
+  stroke: rgba(255, 255, 255, 0.08);
+}
+
+.ufo-progress-meter-val {
+  stroke: var(--cyan);
+  stroke-dasharray: 100;
+  stroke-dashoffset: 20;
+  transition: stroke-dashoffset 0.8s ease;
+}
+
+/* --- The Timeline Entries --- */
+.ufo-timeline-stream {
+  position: relative;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+/* Vertical Timeline Track Line */
+.ufo-timeline-stem {
+  position: absolute;
+  top: 40px;
+  bottom: 60px;
+  left: 36px;
+  width: 2px;
+  background: linear-gradient(to bottom, #4FC3F7 0%, rgba(79, 195, 247, 0.1) 100%);
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .ufo-timeline-stem {
+    left: 20px;
+  }
+}
+
+.ufo-epoch-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 2;
+}
+
+.ufo-epoch-bubble {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0B0F14;
+  border: 2px solid var(--cyan);
+  box-shadow: 0 0 12px rgba(79, 195, 247, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.ufo-epoch-title {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--cyan);
+  text-transform: uppercase;
+}
+
+.ufo-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-left: 60px;
+  margin-bottom: 28px;
+  padding: 24px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .ufo-card {
+    margin-left: 44px;
+    padding: 18px;
+  }
+}
+
+.ufo-card:hover {
+  border-color: rgba(79, 195, 247, 0.4);
+  transform: translateX(4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.ufo-card-hoverline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #4FC3F7, #818CF8);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.ufo-card:hover .ufo-card-hoverline {
+  opacity: 1;
+}
+
+.ufo-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.ufo-date-pill {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.ufo-domain-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(79, 195, 247, 0.08);
+  border: 1px solid rgba(79, 195, 247, 0.2);
+  color: var(--cyan);
+}
+
+.ufo-thesis-link {
+  text-decoration: none;
+  color: var(--ink);
+  display: block;
+  margin-bottom: 12px;
+}
+
+.ufo-thesis-title {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+  transition: color 0.15s;
+}
+
+.ufo-thesis-link:hover .ufo-thesis-title {
+  color: var(--cyan);
+}
+
+.ufo-card-synopsis {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+
+.ufo-card-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  font-size: 12px;
+  color: var(--muted);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Ensure nav-create-mind-btn has absolute high contrast */
+.nav a#nav-create-mind-btn,
+#nav-create-mind-btn {
+  background: #4FC3F7 !important;
+  color: #05070A !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 16px rgba(79, 195, 247, 0.4) !important;
+  border: 1px solid #4FC3F7 !important;
+}
+
+.nav a#nav-create-mind-btn:hover,
+#nav-create-mind-btn:hover {
+  background: #7dd3fc !important;
+  color: #05070A !important;
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px rgba(79, 195, 247, 0.6) !important;
 }
 

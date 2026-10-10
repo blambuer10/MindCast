@@ -378,6 +378,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
               rpcUrls: ['https://sepolia.base.org'],
               blockExplorerUrls: ['https://sepolia.basescan.org'],
             },
+            10143: {
+              chainId: '0x279f',
+              chainName: 'Monad Testnet',
+              nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
+              rpcUrls: ['https://testnet-rpc.monad.xyz'],
+              blockExplorerUrls: ['https://testnet.monadexplorer.com'],
+            },
+            46631: {
+              chainId: '0xb627',
+              chainName: 'Robinhood Testnet',
+              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+              rpcUrls: ['https://rpc.testnet.chain.robinhood.com'],
+              blockExplorerUrls: ['https://testnet.robinhoodchain.blockscout.com'],
+            },
             137: {
               chainId: '0x89',
               chainName: 'Polygon Mainnet',
@@ -415,10 +429,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     if (!usdcAddress) {
       if (chainId === '143') {
         usdcAddress = '0x754704Bc059F8C67012fEd69BC8A327a5aafb603'; // Monad Native USDC
+      } else if (chainId === '10143') {
+        usdcAddress = '0xf817257fed379853cDe0fa4F97AB987181B1E5Ea'; // Monad Testnet Mock USDC
       } else if (chainId === '4663') {
         usdcAddress = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168'; // Robinhood USDG / USDC
+      } else if (chainId === '46631') {
+        usdcAddress = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168'; // Robinhood Testnet
       } else if (chainId === '8453') {
         usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'; // Base Mainnet Native USDC
+      } else if (chainId === '84532') {
+        usdcAddress = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'; // Base Sepolia Test USDC
       } else {
         usdcAddress = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
       }

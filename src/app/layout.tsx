@@ -26,6 +26,7 @@ export const metadata: Metadata = {
 };
 
 import { WalletProvider } from "@/hooks/useWallet";
+import MobileNav from "@/components/layout/MobileNav";
 
 export default function RootLayout({
   children,
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body>
         <WalletProvider>
           {children}
+          <MobileNav />
         </WalletProvider>
       </body>
     </html>

@@ -37,60 +37,34 @@ export default function Header() {
       </Link>
 
       <nav className="nav" aria-label="Main navigation">
-        <Link href="/">Noosphere</Link>
-        <Link href="/explore">Explore</Link>
-        <Link href="/#arena">Debates</Link>
-        <Link href="/docs">Docs</Link>
-        <a
-          href="https://mycai.pro/mindcast-node"
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link href="/explore" style={{ fontWeight: 600 }}>Explore</Link>
+        <Link href="/noospheres">Noospheres</Link>
+        <Link href={isConnected && address ? `/profile/${address}` : '/my-minds'}>My Minds</Link>
+        <Link href="/activity">Activity</Link>
+        <Link href="/#market">Market</Link>
+        <Link
+          href="/create"
+          id="nav-create-mind-btn"
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-            color: "#00f0ff",
-            fontSize: "12px",
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '36px',
+            padding: '0 16px',
+            borderRadius: '9999px',
+            background: '#4FC3F7',
+            color: '#05070A',
+            fontSize: '13px',
             fontWeight: 700,
-            fontFamily: "var(--font-mono)",
-            padding: "4px 10px",
-            borderRadius: "6px",
-            background: "rgba(0, 240, 255, 0.08)",
-            border: "1px solid rgba(0, 240, 255, 0.3)",
-            textDecoration: "none",
-            transition: "all 0.2s"
-          }}
-          title="Deposit $MIND to claim MYCA Genesis Spore Node NFT (Robinhood Chain)"
-        >
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#00f0ff", boxShadow: "0 0 6px #00f0ff" }}></span>
-          Node Portal ↗
-        </a>
-        {isConnected && address && (
-          <Link href={`/profile/${address}`}>Profile</Link>
-        )}
-        <a
-          href="/#cast"
-          className="nav-cta"
-          id="nav-cast-button"
-          style={{ marginRight: '16px', cursor: 'pointer' }}
-          onClick={(e) => {
-            if (typeof window !== 'undefined') {
-              const textarea = document.getElementById('thesis');
-              const castSection = document.getElementById('cast');
-              if (textarea || castSection) {
-                e.preventDefault();
-                (textarea || castSection)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                if (textarea) {
-                  textarea.focus();
-                }
-              } else {
-                window.location.href = '/#cast';
-              }
-            }
+            textDecoration: 'none',
+            boxShadow: '0 0 16px rgba(79, 195, 247, 0.35)',
+            border: '1px solid #4FC3F7',
+            cursor: 'pointer',
           }}
         >
-          Cast an idea ↗
-        </a>
+          + Create a Mind
+        </Link>
+      </nav>
         
         {isConnected && address ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -148,28 +122,6 @@ export default function Header() {
                 {formatAddress(address)}
               </span>
             </a>
-            <a
-              href={`https://basescan.org/address/${address}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="View on BaseScan"
-              style={{
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                color: 'var(--violet)',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-                padding: '6px 8px',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'rgba(168,85,247,0.06)',
-                fontWeight: 600,
-              }}
-            >
-              BaseScan ↗
-            </a>
             <button
               className="primary-button"
               style={{ minHeight: '34px', padding: '0 12px', fontSize: '12px' }}
@@ -189,7 +141,6 @@ export default function Header() {
             {isConnecting ? 'Connecting...' : 'Connect Wallet'}
           </button>
         )}
-      </nav>
     </header>
   );
 }

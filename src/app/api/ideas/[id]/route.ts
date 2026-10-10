@@ -51,7 +51,13 @@ export async function GET(
 
     return NextResponse.json({
       idea,
-      creator: creator ? { id: creator.id, walletAddress: creator.walletAddress } : null,
+      creator: creator ? {
+        id: creator.id,
+        walletAddress: creator.walletAddress,
+        username: creator.username,
+        displayName: creator.displayName,
+        avatarUrl: creator.avatarUrl
+      } : null,
       agent,
       mindState,
       predictions,

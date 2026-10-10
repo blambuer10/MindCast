@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserByWallet } from '@/lib/database/queries';
+import { getUserByIdentifier, getUserByWallet } from '@/lib/database/queries';
 import { getDb } from '@/lib/database/connection';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export async function GET(
 ) {
   try {
     const { address } = await params;
-    const user = getUserByWallet(address);
+    const user = getUserByIdentifier(address) || getUserByWallet(address);
 
     // Return empty profile for unknown users
     if (!user) {
@@ -282,6 +282,77 @@ export async function GET(
       console.error('[Profile] Activity query error:', e.message);
     }
 
+    // ─── User-Authored Arguments ───────────────────────────────────────
+    let userArguments: any[] = [];
+    try {
+      userArguments = db.prepare(`
+        SELECT
+          arg.id,
+          arg.agent_id,
+          arg.content,
+          arg.strength,
+          arg.stance,
+          arg.created_at,
+          a.thesis as mind_thesis,
+          i.id as idea_id
+        FROM arguments arg
+        LEFT JOIN agents a ON a.id = arg.agent_id
+        LEFT JOIN ideas i ON i.id = a.idea_id
+        WHERE LOWER(arg.author_wallet) = ?
+        ORDER BY arg.created_at DESC
+        LIMIT 50
+      `).all(user.walletAddress.toLowerCase()) as any[];
+    } catch (_) {}
+
+    // ─── User Argument Stakes ───────────────────────────────────────────
+    let userStakes: any[] = [];
+    try {
+      userStakes = db.prepare(`
+        SELECT
+          s.id,
+          s.argument_id,
+          s.agent_id,
+          s.side,
+          s.amount,
+          s.token,
+          s.tx_hash,
+          s.created_at,
+          arg.content as argument_content,
+          a.thesis as mind_thesis,
+          i.id as idea_id
+        FROM argument_stakes s
+        LEFT JOIN arguments arg ON arg.id = s.argument_id
+        LEFT JOIN agents a ON a.id = s.agent_id
+        LEFT JOIN ideas i ON i.id = a.idea_id
+        WHERE LOWER(s.user_wallet) = ?
+        ORDER BY s.created_at DESC
+        LIMIT 50
+      `).all(user.walletAddress.toLowerCase()) as any[];
+    } catch (_) {}
+
+    // ─── User Compute Sponsorships ──────────────────────────────────────
+    let userSponsorships: any[] = [];
+    try {
+      userSponsorships = db.prepare(`
+        SELECT
+          sp.id,
+          sp.mind_id,
+          sp.amount,
+          sp.token,
+          sp.message,
+          sp.tx_hash,
+          sp.created_at,
+          a.thesis as mind_thesis,
+          i.id as idea_id
+        FROM mind_sponsorships sp
+        LEFT JOIN agents a ON a.id = sp.mind_id
+        LEFT JOIN ideas i ON i.id = a.idea_id
+        WHERE LOWER(sp.user_wallet) = ?
+        ORDER BY sp.created_at DESC
+        LIMIT 50
+      `).all(user.walletAddress.toLowerCase()) as any[];
+    } catch (_) {}
+
     // ─── Stats Summary ───────────────────────────────────────────────────
     const totalPortfolioValue = portfolio.reduce((sum, p) => {
       return sum + ((p.estimated_value || 1000) * (p.allocation_percentage || 0) / 100);
@@ -289,8 +360,18 @@ export async function GET(
 
     return NextResponse.json({
       exists: true,
-      address,
+      address: user.walletAddress,
       userId: user.id,
+      user: {
+        id: user.id,
+        walletAddress: user.walletAddress,
+        username: user.username,
+        displayName: user.displayName,
+        bio: user.bio,
+        avatarUrl: user.avatarUrl,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
       joinedAt: (user as any).created_at || user.createdAt,
       reputation,
       trackRecord,
@@ -349,6 +430,9 @@ export async function GET(
         creatorWallet: f.creator_wallet,
         followedAt: f.followed_at,
       })),
+      arguments: userArguments,
+      stakes: userStakes,
+      sponsorships: userSponsorships,
       activity,
       stats: {
         totalMinds: minds.length,
@@ -356,6 +440,9 @@ export async function GET(
         activeMinds: activeCount,
         provenMinds: provenCount,
         totalPortfolioValue: Math.round(totalPortfolioValue + totalValue),
+        totalArguments: userArguments.length,
+        totalStakes: userStakes.length,
+        totalSponsorships: userSponsorships.length,
       },
     });
   } catch (error: any) {

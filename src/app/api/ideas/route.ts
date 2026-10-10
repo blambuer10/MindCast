@@ -80,8 +80,10 @@ export async function GET(request: NextRequest) {
     const tab = (searchParams.get('tab') || 'trending') as FeedFilters['tab'];
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
+    const walletAddress = searchParams.get('walletAddress') || undefined;
+    const topic = searchParams.get('topic') || undefined;
 
-    const ideas = getIdeasFeed({ tab, page, limit });
+    const ideas = getIdeasFeed({ tab, page, limit, walletAddress, topic });
 
     return NextResponse.json({ ideas, page, limit });
 

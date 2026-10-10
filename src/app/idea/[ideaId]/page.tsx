@@ -3,9 +3,9 @@
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
 import { useWallet } from '@/hooks/useWallet';
-import type { Idea, Agent, MindState, Prediction } from '@/lib/types';
-import NoosMark from '@/components/ui/NoosMark';
+import type { Idea, Agent, MindState, Prediction, Evidence, Argument, AgentEvent } from '@/lib/types';
 
 interface IdeaPageData {
   idea: Idea;
@@ -14,371 +14,427 @@ interface IdeaPageData {
   predictions?: Prediction[];
   followerCount: number;
   isFollowing?: boolean;
-  mindAsset?: {
-    id: string;
-    mindId: string;
-    assetType: string;
-    totalSupply: number;
-    creatorAllocation: number;
-    communityAllocation: number;
-    protocolAllocation: number;
-    liquidityAllocation: number;
-    marketStatus: string;
-    tokenAddress?: string | null;
-    poolAddress?: string | null;
-    tokenName?: string | null;
-    tokenTicker?: string | null;
-    createdAt: string;
-  } | null;
-  mindFounder?: {
-    creatorId: string;
-    mindId: string;
-    allocationPercentage: number;
-    allocationStatus: string;
-    createdAt: string;
-  } | null;
+  mindAsset?: any | null;
+  mindFounder?: any | null;
   userAllocation?: number;
-  creator?: { id?: string; walletAddress?: string } | null;
+  creator?: { id?: string; walletAddress?: string; username?: string | null; displayName?: string | null; avatarUrl?: string | null } | null;
 }
+
+type TabType = 'overview' | 'evidence' | 'debate' | 'predictions' | 'history';
+
+const TESTNET_CHAINS = [
+  {
+    id: 84532,
+    key: 'base-sepolia',
+    name: 'Base Sepolia',
+    icon: '🔵',
+    currency: 'ETH',
+    usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+    explorer: 'https://sepolia.basescan.org',
+  },
+  {
+    id: 10143,
+    key: 'monad-testnet',
+    name: 'Monad Testnet',
+    icon: '🟣',
+    currency: 'MON',
+    usdcAddress: '0xf817257fed379853cDe0fa4F97AB987181B1E5Ea',
+    explorer: 'https://testnet.monadexplorer.com',
+  },
+  {
+    id: 46631,
+    key: 'robinhood-testnet',
+    name: 'Robinhood Testnet',
+    icon: '🟢',
+    currency: 'ETH',
+    usdcAddress: '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168',
+    explorer: 'https://testnet.robinhoodchain.blockscout.com',
+  },
+];
 
 export default function IdeaPage({ params }: { params: Promise<{ ideaId: string }> }) {
   const { ideaId } = use(params);
-  const { isConnected, address, connect, sendUsdc, switchChain, chainId } = useWallet();
+  const { isConnected, address, chainId, connect, sendUsdc, switchChain } = useWallet();
+
   const [data, setData] = useState<IdeaPageData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<'arguments' | 'evidence' | 'predictions' | 'activity'>('arguments');
-  const [evidenceTab, setEvidenceTab] = useState<'all' | 'supporting' | 'opposing'>('all');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
+
+  // Follow & Share states
   const [following, setFollowing] = useState(false);
-  const [followers, setFollowers] = useState(0);
+  const [followerCount, setFollowerCount] = useState(0);
   const [copied, setCopied] = useState(false);
-  const [showChallengeModal, setShowChallengeModal] = useState(false);
-  const [activeEvidenceId, setActiveEvidenceId] = useState<string | null>(null);
-  const [challengeState, setChallengeState] = useState<'idle' | 'preparing' | 'paying' | 'verifying' | 'success' | 'error'>('idle');
-  const [challengeError, setChallengeError] = useState('');
 
-  const [showTradeModal, setShowTradeModal] = useState(false);
-  const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
-  const [tradePercentage, setTradePercentage] = useState('1');
-  const [tradeState, setTradeState] = useState<'idle' | 'executing' | 'verifying' | 'success' | 'error'>('idle');
-  const [tradeError, setTradeError] = useState('');
-  const [tradeTxHash, setTradeTxHash] = useState('');
+  // Evidence filtering & Flagging
+  const [evidenceFilter, setEvidenceFilter] = useState<'all' | 'supporting' | 'opposing'>('all');
+  const [flagModalEvidence, setFlagModalEvidence] = useState<Evidence | null>(null);
+  const [flagReason, setFlagReason] = useState('Misrepresented Citation');
+  const [flagNotes, setFlagNotes] = useState('');
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
+  const [flagSuccess, setFlagSuccess] = useState(false);
 
-  // Step 2: Prediction Anchoring states
-  const [predictionClaim, setPredictionClaim] = useState('');
-  const [predictionConfidence, setPredictionConfidence] = useState(75);
-  const [isSubmittingPrediction, setIsSubmittingPrediction] = useState(false);
-  const [predictionSuccessMessage, setPredictionSuccessMessage] = useState('');
+  // Debate contribution
+  const [newArgContent, setNewArgContent] = useState('');
+  const [newArgStance, setNewArgStance] = useState<'SUPPORTING' | 'CHALLENGING' | 'QUESTION'>('CHALLENGING');
+  const [argSubmitting, setArgSubmitting] = useState(false);
+  const [argMessage, setArgMessage] = useState('');
 
-  const handleAnchorPrediction = async (claimToSubmit?: string, confidenceToSubmit?: number) => {
-    const finalClaim = claimToSubmit || predictionClaim;
-    const finalConf = confidenceToSubmit !== undefined ? confidenceToSubmit : predictionConfidence;
-    if (!finalClaim.trim() || !data) return;
+  // Polymarket-Style Argument Staking on Testnet
+  const [activeStakeModal, setActiveStakeModal] = useState<{ argumentId: string; side: 'SUPPORT' | 'CHALLENGE'; argumentContent: string } | null>(null);
+  const [stakeAmount, setStakeAmount] = useState('5');
+  const [stakeSubmitting, setStakeSubmitting] = useState(false);
+  const [stakeMessage, setStakeMessage] = useState<string | null>(null);
+  const [marketSummaries, setMarketSummaries] = useState<Record<string, any>>({});
+  const [selectedStakeChainId, setSelectedStakeChainId] = useState<number>(84532);
+  const [lastStakeExplorerUrl, setLastStakeExplorerUrl] = useState<string | null>(null);
 
-    setIsSubmittingPrediction(true);
-    setPredictionSuccessMessage('');
+  // Agent Research Compute Sponsorship on Testnet
+  const [isSponsorModalOpen, setIsSponsorModalOpen] = useState(false);
+  const [sponsorAmount, setSponsorAmount] = useState('5');
+  const [sponsorMessage, setSponsorMessage] = useState('');
+  const [sponsorSubmitting, setSponsorSubmitting] = useState(false);
+  const [sponsorSuccess, setSponsorSuccess] = useState<string | null>(null);
+  const [selectedSponsorChainId, setSelectedSponsorChainId] = useState<number>(84532);
+  const [lastSponsorExplorerUrl, setLastSponsorExplorerUrl] = useState<string | null>(null);
 
+  // Prediction submission
+  const [predClaim, setPredClaim] = useState('');
+  const [predDeadline, setPredDeadline] = useState('2027-12-31');
+  const [predConfidence, setPredConfidence] = useState(80);
+  const [predSubmitting, setPredSubmitting] = useState(false);
+  const [predMessage, setPredMessage] = useState('');
+
+  // Expandable economics section
+  const [showEconomicsDrawer, setShowEconomicsDrawer] = useState(false);
+
+  const fetchDetail = async () => {
     try {
-      const targetMindId = data.agent?.id || data.idea?.id || ideaId;
-      const res = await fetch(`/api/minds/${targetMindId}/predictions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          claim: finalClaim.trim(),
-          confidenceAtCreation: Number(finalConf) || 50,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to submit prediction.');
+      const url = address ? `/api/ideas/${ideaId}?walletAddress=${address}` : `/api/ideas/${ideaId}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const json = await res.json();
+        setData(json);
+        setFollowing(Boolean(json.isFollowing));
+        setFollowerCount(json.followerCount || 0);
       }
-
-      const result = await res.json();
-      setPredictionClaim('');
-      setPredictionSuccessMessage('Prediction locked! Mind is researching evidence and structuring arguments.');
-
-      // Refresh idea detail
-      const detailRes = await fetch(`/api/ideas/${data.idea.id}`);
-      if (detailRes.ok) {
-        const detailResult = await detailRes.json();
-        setData(detailResult);
-      }
-
-      setActiveSection('arguments');
-    } catch (err: any) {
-      console.error('Failed to anchor prediction:', err);
-      alert(err.message || 'Failed to submit prediction. Please try again.');
+    } catch (err) {
+      console.error('Failed to fetch idea detail:', err);
     } finally {
-      setIsSubmittingPrediction(false);
+      setLoading(false);
     }
-  };
-
-  // Lifecycle and DEX graduation states
-  const [isGraduating, setIsGraduating] = useState(false);
-  const [graduationMessage, setGraduationMessage] = useState('');
-
-  const handleGraduateLifecycle = async (targetStatus?: string) => {
-    if (!data?.agent) return;
-    setIsGraduating(true);
-    setGraduationMessage('');
-    try {
-      const res = await fetch(`/api/minds/${data.agent.id}/lifecycle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetStatus }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to update lifecycle');
-      }
-      const resData = await res.json();
-      setGraduationMessage(`Mind advanced to ${resData.newStatus}!`);
-
-      const detailRes = await fetch(`/api/ideas/${data.idea.id}`);
-      if (detailRes.ok) {
-        const detailResult = await detailRes.json();
-        setData(detailResult);
-      }
-    } catch (e: any) {
-      console.error('Lifecycle error:', e);
-      alert(e.message || 'Graduation update failed.');
-    } finally {
-      setIsGraduating(false);
-    }
-  };
-
-  const handleExecuteTrade = async () => {
-    if (!isConnected || !address || !data?.agent) return;
-
-    setTradeState('executing');
-    setTradeError('');
-    setTradeTxHash('');
-
-    try {
-      const percentageNum = parseFloat(tradePercentage);
-      if (isNaN(percentageNum) || percentageNum <= 0 || percentageNum > 100) {
-        throw new Error('Please enter a valid percentage between 0.1% and 100%.');
-      }
-
-      const targetChainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '84532');
-      if (chainId && parseInt(chainId) !== targetChainId) {
-        const switched = await switchChain(targetChainId);
-        if (!switched) {
-          throw new Error('Please switch to the Base network to continue.');
-        }
-      }
-
-      if (tradeType === 'buy') {
-        const repScore = Math.min(100, Math.max(10, Math.round(
-          (data.agent.credibility * 0.4) + 
-          ((data.agent.predictionAccuracy || 0.7) * 40) + 
-          ((followers || 0) / 20) + 
-          (data.agent.confidence * 0.1)
-        )));
-        const sharePrice = (0.10 + (repScore / 250)) / 300;
-        const grossCost = (percentageNum * 1000) * sharePrice;
-        const costAmount = (grossCost - (grossCost * 0.02)).toFixed(6); // netAmount expected by verifier
-        const recipient = process.env.NEXT_PUBLIC_BONDING_VAULT_ADDRESS || '0xf2f726598E96D85b9b08ece943590529555b867d';
-        
-        let txHash = '';
-        try {
-          txHash = await sendUsdc(recipient, costAmount);
-        } catch (err: any) {
-          console.error('USDC Transfer failed:', err);
-          throw new Error(err.message || 'USDC transfer failed. Please approve the transaction in your wallet.');
-        }
-
-        setTradeState('verifying');
-
-        const res = await fetch(`/api/minds/${data.agent.id}/market/buy`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            percentage: tradePercentage,
-            txHash,
-            walletAddress: address,
-          }),
-        });
-
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Failed to verify purchase.');
-        }
-
-        setTradeTxHash(txHash);
-        setTradeState('success');
-
-      } else {
-        setTradeState('verifying');
-
-        const res = await fetch(`/api/minds/${data.agent.id}/market/sell`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            percentage: tradePercentage,
-            walletAddress: address,
-          }),
-        });
-
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Failed to execute sale.');
-        }
-
-        const resData = await res.json();
-        setTradeTxHash(resData.payoutTxHash);
-        setTradeState('success');
-      }
-
-      setTimeout(() => {
-        setShowTradeModal(false);
-        setTradeState('idle');
-        window.location.reload();
-      }, 3000);
-
-    } catch (err: any) {
-      console.error('Trade flow error:', err);
-      setTradeState('error');
-      setTradeError(err.message || 'Transaction failed. Please try again.');
-    }
-  };
-
-  const handleInitiateChallenge = async () => {
-    if (!isConnected || !address) {
-      try {
-        await connect();
-      } catch (err: any) {
-        setChallengeError('Please connect your wallet to challenge.');
-        return;
-      }
-    }
-
-    if (!activeEvidenceId) {
-      setChallengeError('Please select an evidence item to challenge.');
-      return;
-    }
-
-    setChallengeState('preparing');
-    setChallengeError('');
-
-    try {
-      const targetChainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '8453');
-      if (chainId && parseInt(chainId) !== targetChainId) {
-        const switched = await switchChain(targetChainId);
-        if (!switched) {
-          throw new Error('Please switch to the Base network to continue.');
-        }
-      }
-
-      const prepRes = await fetch('/api/debates/challenge/prepare', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          parentIdeaId: ideaId,
-          evidenceId: activeEvidenceId,
-          walletAddress: address,
-        }),
-      });
-
-      if (!prepRes.ok) {
-        const err = await prepRes.json();
-        throw new Error(err.error || 'Failed to prepare challenge.');
-      }
-
-      const prepData = await prepRes.json();
-      const { opposingIdeaId, paymentRecipient, paymentAmount } = prepData;
-
-      setChallengeState('paying');
-
-      let txHash = '';
-      try {
-        txHash = await sendUsdc(paymentRecipient, paymentAmount);
-      } catch (err: any) {
-        console.error('USDC payment rejected or failed:', err);
-        throw new Error(err.message || 'USDC transfer failed. Please confirm the 2 USDC transaction in your wallet.');
-      }
-
-      setChallengeState('verifying');
-
-      const verifyRes = await fetch('/api/debates/challenge/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          parentIdeaId: ideaId,
-          opposingIdeaId,
-          txHash,
-          chain: 'base',
-          walletAddress: address,
-        }),
-      });
-
-      if (!verifyRes.ok) {
-        const err = await verifyRes.json();
-        throw new Error(err.error || 'Challenge verification failed.');
-      }
-
-      setChallengeState('success');
-      
-      setTimeout(() => {
-        setShowChallengeModal(false);
-        setChallengeState('idle');
-        window.location.reload();
-      }, 2500);
-
-    } catch (err: any) {
-      console.error('Challenge flow error:', err);
-      setChallengeState('error');
-      setChallengeError(err.message || 'USDC transaction failed. Please try again.');
-    }
-  };
-
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const shareText = data?.idea ? `Check out this Mind on MINDCAST: "${data.idea.content}"` : '';
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   useEffect(() => {
-    async function fetchIdea() {
-      try {
-        const res = await fetch(`/api/ideas/${ideaId}?walletAddress=${address || ''}`);
-        if (res.ok) {
-          const result = await res.json();
-          setData(result);
-          setFollowing(!!result.isFollowing);
-          setFollowers(result.followerCount || 0);
-        }
-      } catch (err) {
-        console.error('Failed to fetch idea:', err);
-      }
-      setLoading(false);
-    }
-    fetchIdea();
+    fetchDetail();
   }, [ideaId, address]);
 
   const handleFollowToggle = async () => {
-    if (!address) {
+    if (!isConnected || !address) {
       await connect();
       return;
     }
+    const next = !following;
+    setFollowing(next);
+    setFollowerCount(prev => next ? prev + 1 : Math.max(0, prev - 1));
 
     try {
-      const method = following ? 'DELETE' : 'POST';
-      const res = await fetch(`/api/ideas/${ideaId}/follow`, {
+      const method = next ? 'POST' : 'DELETE';
+      await fetch(`/api/ideas/${ideaId}/follow`, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress: address }),
       });
+    } catch (err) {
+      console.error('Follow failed:', err);
+      setFollowing(!next);
+      setFollowerCount(prev => !next ? prev + 1 : Math.max(0, prev - 1));
+    }
+  };
 
+  const handleShare = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handlePlaceStake = async (isSimulation = false) => {
+    if (!activeStakeModal) return;
+    if (!isConnected || !address) {
+      await connect();
+      return;
+    }
+
+    const num = parseFloat(stakeAmount);
+    if (isNaN(num) || num < 0.5) {
+      setStakeMessage('Minimum stake is $0.50 USDC');
+      return;
+    }
+
+    setStakeSubmitting(true);
+    setStakeMessage(null);
+    setLastStakeExplorerUrl(null);
+
+    const selectedChain = TESTNET_CHAINS.find(c => c.id === selectedStakeChainId) || TESTNET_CHAINS[0];
+    let txHash: string | undefined = undefined;
+
+    if (!isSimulation) {
+      // 1. Check if wallet is on selected testnet
+      if (chainId !== String(selectedChain.id)) {
+        setStakeMessage(`Switching wallet to ${selectedChain.name}...`);
+        const switched = await switchChain(selectedChain.id);
+        if (!switched) {
+          setStakeMessage(`Please approve network switch to ${selectedChain.name} in your wallet.`);
+          setStakeSubmitting(false);
+          return;
+        }
+      }
+
+      // 2. Perform testnet USDC transfer to treasury
+      try {
+        setStakeMessage(`Please confirm the $${num.toFixed(2)} USDC transfer in your wallet...`);
+        const treasury = '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2';
+        txHash = await sendUsdc(treasury, num.toString());
+        setStakeMessage(`Transaction submitted! Recording stake on ${selectedChain.name}...`);
+      } catch (txErr: any) {
+        console.warn('[Polymarket Testnet] Transfer notice:', txErr);
+        if (txErr?.code === 4001 || txErr?.message?.includes('User rejected') || txErr?.message?.includes('denied')) {
+          setStakeMessage('Transaction was cancelled in wallet.');
+          setStakeSubmitting(false);
+          return;
+        }
+        setStakeMessage(`Wallet transfer failed (${txErr.message?.slice(0, 70) || 'insufficient balance'}). You can also use "Instant Testnet Faucet" below.`);
+        setStakeSubmitting(false);
+        return;
+      }
+    } else {
+      // Zero-gas simulation on selected testnet
+      txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    }
+
+    const targetAgent = data?.agent?.id || ideaId;
+    try {
+      const res = await fetch(`/api/minds/${targetAgent}/arguments/${activeStakeModal.argumentId}/stake`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userWallet: address,
+          side: activeStakeModal.side,
+          amount: num,
+          token: 'USDC',
+          chain: selectedChain.key,
+          txHash,
+        }),
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        setStakeMessage(resData.error || 'Failed to place stake');
+      } else {
+        setMarketSummaries(prev => ({
+          ...prev,
+          [activeStakeModal.argumentId]: resData.summary,
+        }));
+        const explorerUrl = `${selectedChain.explorer}/tx/${txHash}`;
+        setLastStakeExplorerUrl(explorerUrl);
+        setStakeMessage(`✓ Staked $${num.toFixed(2)} USDC on ${activeStakeModal.side} via ${selectedChain.name}!`);
+        setTimeout(() => {
+          setActiveStakeModal(null);
+          setStakeMessage(null);
+          setLastStakeExplorerUrl(null);
+        }, 3500);
+      }
+    } catch (err: any) {
+      setStakeMessage(err.message || 'Error executing stake');
+    } finally {
+      setStakeSubmitting(false);
+    }
+  };
+
+  const handleSponsorCompute = async (isSimulation = false) => {
+    if (!isConnected || !address) {
+      await connect();
+      return;
+    }
+
+    const num = parseFloat(sponsorAmount);
+    if (isNaN(num) || num < 0.5) {
+      setSponsorSuccess('Minimum sponsorship is $0.50 USDC');
+      return;
+    }
+
+    setSponsorSubmitting(true);
+    setSponsorSuccess(null);
+    setLastSponsorExplorerUrl(null);
+
+    const selectedChain = TESTNET_CHAINS.find(c => c.id === selectedSponsorChainId) || TESTNET_CHAINS[0];
+    let txHash: string | undefined = undefined;
+
+    if (!isSimulation) {
+      if (chainId !== String(selectedChain.id)) {
+        setSponsorSuccess(`Switching wallet to ${selectedChain.name}...`);
+        const switched = await switchChain(selectedChain.id);
+        if (!switched) {
+          setSponsorSuccess(`Please approve network switch to ${selectedChain.name} in your wallet.`);
+          setSponsorSubmitting(false);
+          return;
+        }
+      }
+
+      try {
+        setSponsorSuccess(`Please confirm the $${num.toFixed(2)} USDC grant in your wallet...`);
+        const treasury = '0x33f18d0BD613A2afa4694A8AAA6b1daf4FEBdbd2';
+        txHash = await sendUsdc(treasury, num.toString());
+        setSponsorSuccess(`Transaction submitted! Recording grant on ${selectedChain.name}...`);
+      } catch (txErr: any) {
+        console.warn('[Compute Sponsor Testnet] Transfer notice:', txErr);
+        if (txErr?.code === 4001 || txErr?.message?.includes('User rejected') || txErr?.message?.includes('denied')) {
+          setSponsorSuccess('Transaction was cancelled in wallet.');
+          setSponsorSubmitting(false);
+          return;
+        }
+        setSponsorSuccess(`Wallet transfer failed (${txErr.message?.slice(0, 70) || 'insufficient balance'}). You can also use "Instant Testnet Faucet" below.`);
+        setSponsorSubmitting(false);
+        return;
+      }
+    } else {
+      txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    }
+
+    const targetAgent = data?.agent?.id || ideaId;
+    try {
+      const res = await fetch(`/api/minds/${targetAgent}/sponsor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userWallet: address,
+          amount: num,
+          token: 'USDC',
+          message: sponsorMessage.trim(),
+          chain: selectedChain.key,
+          txHash,
+        }),
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        setSponsorSuccess(resData.error || 'Failed to sponsor mind');
+      } else {
+        const explorerUrl = `${selectedChain.explorer}/tx/${txHash}`;
+        setLastSponsorExplorerUrl(explorerUrl);
+        setSponsorSuccess(`✓ Sponsored $${num.toFixed(2)} USDC compute to ${targetAgent} via ${selectedChain.name}!`);
+        await fetchDetail();
+        setTimeout(() => {
+          setIsSponsorModalOpen(false);
+          setSponsorSuccess(null);
+          setSponsorMessage('');
+          setLastSponsorExplorerUrl(null);
+        }, 3500);
+      }
+    } catch (err: any) {
+      setSponsorSuccess(err.message || 'Error submitting grant');
+    } finally {
+      setSponsorSubmitting(false);
+    }
+  };
+
+
+  const handleFlagSubmit = async () => {
+    if (!flagModalEvidence) return;
+    setFlagSubmitting(true);
+    try {
+      const res = await fetch(`/api/evidence/${flagModalEvidence.id}/flag`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: flagReason,
+          notes: flagNotes,
+          userWallet: address || undefined,
+        }),
+      });
       if (res.ok) {
-        setFollowing(!following);
-        setFollowers(prev => following ? prev - 1 : prev + 1);
+        setFlagSuccess(true);
+        setTimeout(() => {
+          setFlagModalEvidence(null);
+          setFlagSuccess(false);
+          setFlagNotes('');
+        }, 1500);
       }
     } catch (err) {
-      console.error('Failed to toggle follow status:', err);
+      console.error('Flag failed:', err);
+    } finally {
+      setFlagSubmitting(false);
+    }
+  };
+
+  const handleContributeArgument = async () => {
+    if (!newArgContent.trim() || newArgContent.trim().length < 10) {
+      setArgMessage('Please enter an argument of at least 10 characters.');
+      return;
+    }
+    const agentId = data?.agent?.id || data?.idea?.id || ideaId;
+    setArgSubmitting(true);
+    setArgMessage('');
+
+    try {
+      const res = await fetch(`/api/minds/${agentId}/arguments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: newArgContent.trim(),
+          stance: newArgStance,
+          authorWallet: address || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.error || 'Failed to submit argument');
+      }
+
+      setNewArgContent('');
+      setArgMessage('Argument submitted successfully.');
+      await fetchDetail();
+    } catch (err: any) {
+      setArgMessage(err.message || 'Error submitting argument');
+    } finally {
+      setArgSubmitting(false);
+    }
+  };
+
+  const handleCreatePrediction = async () => {
+    if (!predClaim.trim() || predClaim.trim().length < 10) {
+      setPredMessage('Please enter a specific, testable prediction statement.');
+      return;
+    }
+    const agentId = data?.agent?.id || data?.idea?.id || ideaId;
+    setPredSubmitting(true);
+    setPredMessage('');
+
+    try {
+      const res = await fetch(`/api/minds/${agentId}/predictions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          claim: predClaim.trim(),
+          confidenceAtCreation: predConfidence,
+          targetDate: predDeadline,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.error || 'Failed to lock prediction');
+      }
+
+      setPredClaim('');
+      setPredMessage('Prediction recorded permanently with timestamp.');
+      await fetchDetail();
+    } catch (err: any) {
+      setPredMessage(err.message || 'Error locking prediction');
+    } finally {
+      setPredSubmitting(false);
     }
   };
 
@@ -386,11 +442,12 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
     return (
       <>
         <Header />
-        <main className="page-container" style={{ maxWidth: '800px' }}>
-          <div className="skeleton" style={{ width: '100px', height: '16px', marginBottom: '16px' }}></div>
-          <div className="skeleton" style={{ width: '100%', height: '48px', marginBottom: '24px' }}></div>
-          <div className="skeleton" style={{ width: '200px', height: '16px' }}></div>
+        <main className="page-container" style={{ maxWidth: '960px', margin: '60px auto', padding: '0 24px' }}>
+          <div style={{ height: '24px', width: '140px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', marginBottom: '20px' }} />
+          <div style={{ height: '40px', width: '80%', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', marginBottom: '16px' }} />
+          <div style={{ height: '120px', width: '100%', background: 'rgba(255,255,255,0.04)', borderRadius: '12px' }} />
         </main>
+        <Footer />
       </>
     );
   }
@@ -399,1395 +456,1705 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
     return (
       <>
         <Header />
-        <main className="page-container">
-          <div className="empty-state">
-            <div style={{ marginBottom: '16px' }}>
-              <NoosMark size={56} isSleeping={true} />
-            </div>
-            <h3 className="empty-state-title">Mind not found.</h3>
-            <p className="empty-state-text">This idea may not exist or may have been removed.</p>
-            <Link href="/explore" className="btn btn-secondary" style={{ marginTop: '16px' }}>
-              Explore the Noosphere
-            </Link>
-          </div>
+        <main className="page-container" style={{ maxWidth: '600px', margin: '80px auto', textAlign: 'center', padding: '0 24px' }}>
+          <h2 style={{ fontSize: '24px', color: 'var(--ink)' }}>Mind Not Found</h2>
+          <p style={{ color: 'var(--muted)', margin: '12px 0 24px' }}>The living idea you are looking for does not exist or has been removed.</p>
+          <Link href="/explore" className="btn-primary">Return to Explore</Link>
         </main>
+        <Footer />
       </>
     );
   }
 
-  const { idea, agent, mindState } = data;
-  const confidence = agent?.confidence ?? 50;
-  const credibility = agent?.credibility ?? 50;
+  const idea = data.idea;
+  const agent = data.agent;
+  const mindState = data.mindState;
+  const evidenceList = mindState?.evidence || [];
+  const argumentsList = mindState?.arguments || [];
+  const predictionsList = data.predictions || [];
+  const eventsList = mindState?.memory?.eventHistory || [];
 
-  const eventHistory = mindState?.memory?.eventHistory || [];
-  const lastEvent = eventHistory[0];
-  const lastEventType = lastEvent?.eventType;
+  const agentId = agent?.id || `MIND-${idea.id.slice(0, 4).toUpperCase()}`;
+  const statusLabel = agent?.lifecycleStatus === 'MARKET_ACTIVE' || agent?.lifecycleStatus === 'PROVEN'
+    ? 'PROVEN'
+    : (argumentsList.length > 0 ? 'DEBATING' : 'EXPLORING');
 
-  let statusText = 'ACTIVE';
-  let badgeStyle = { background: 'var(--violet-soft)', color: 'var(--violet)' };
+  const filteredEvidence = evidenceList.filter(e => {
+    if (evidenceFilter === 'supporting') return e.direction === 'SUPPORTING' || e.stance === 'SUPPORTING';
+    if (evidenceFilter === 'opposing') return e.direction === 'OPPOSING' || e.stance === 'OPPOSING';
+    return true;
+  });
 
-  if (lastEventType === 'MIND_SLEEPING') {
-    statusText = 'SLEEPING';
-    badgeStyle = { background: 'var(--paper-2)', color: 'var(--muted)' };
-  } else if (!agent) {
-    statusText = 'CREATING';
-    badgeStyle = { background: 'var(--coral)', color: 'var(--paper)' };
-  }
+  const latestEvent = eventsList.length > 0 ? eventsList[0] : null;
 
   return (
     <>
       <Header />
-      <main className="page-container" style={{ maxWidth: '800px' }}>
-        <div className="animate-fade-in">
+      <main className="page-container" style={{ maxWidth: '980px', margin: '0 auto', padding: '40px 20px 80px' }}>
+        {/* Back Link */}
+        <div style={{ marginBottom: '24px' }}>
+          <Link href="/explore" style={{ fontSize: '13px', color: 'var(--cyan)', textDecoration: 'none' }}>
+            ← Back to Explore Feed
+          </Link>
+        </div>
 
-          {/* Mind ID & Status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <NoosMark size={26} glow={true} />
-            <span className="mind-id" style={{ fontSize: 'var(--text-sm)', color: 'var(--violet)', fontWeight: 600 }}>{agent?.id || 'MIND-????'}</span>
-            <span className="badge" style={{ ...badgeStyle, padding: '4px 8px', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
-              {statusText}
-            </span>
-            {agent && (
-              <span className="badge" style={{ background: 'var(--paper-2)', color: 'var(--ink)', padding: '4px 8px', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
-                {agent.lifecycleStatus}
+        {/* ─── DOSSIER HEADER ─── */}
+        <header style={{
+          background: 'var(--bg-card, #0E131A)',
+          border: '1px solid var(--border)',
+          borderRadius: '24px',
+          padding: '36px',
+          marginBottom: '32px',
+          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.4)',
+        }}>
+          {/* Metadata Row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span style={{
+                fontFamily: 'var(--mono)',
+                fontSize: '13px',
+                fontWeight: 700,
+                color: 'var(--cyan)',
+                background: 'rgba(79, 195, 247, 0.12)',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                border: '1px solid rgba(79, 195, 247, 0.25)',
+              }}>
+                {agentId}
               </span>
-            )}
-            {data?.creator?.walletAddress && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                <span style={{ color: 'var(--muted)' }}>Creator:</span>
-                <a
-                  href={`/profile/${data.creator.walletAddress}`}
-                  title="View Profile"
-                  style={{ color: 'var(--ink)', textDecoration: 'underline', fontWeight: 600 }}
-                >
-                  {data.creator.walletAddress.slice(0, 6)}...{data.creator.walletAddress.slice(-4)}
-                </a>
-                <a
-                  href={`https://basescan.org/address/${data.creator.walletAddress}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="View on BaseScan"
-                  style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 700 }}
-                >
-                  ↗
-                </a>
-              </div>
-            )}
-            <div style={{ flex: 1 }}></div>
-            <button
-              className={`btn btn-sm ${following ? 'btn-secondary' : 'btn-primary'}`}
-              onClick={handleFollowToggle}
-              style={{ marginRight: '16px' }}
-            >
-              {following ? 'Following ·' : 'Follow'}
-            </button>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>{followers} followers</span>
+              <span className={`badge-status ${statusLabel.toLowerCase()}`}>
+                {statusLabel}
+              </span>
+              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                Published {new Date(idea.publishedAt || idea.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                onClick={handleShare}
+                className="btn-secondary"
+                style={{ minHeight: '34px', padding: '0 14px', fontSize: '12px' }}
+              >
+                {copied ? 'Link Copied ✓' : 'Share ↗'}
+              </button>
+              <button
+                onClick={handleFollowToggle}
+                className="btn-primary"
+                style={{
+                  minHeight: '34px',
+                  padding: '0 18px',
+                  fontSize: '12px',
+                  background: following ? 'transparent' : 'var(--cyan)',
+                  border: following ? '1px solid var(--cyan)' : 'none',
+                  color: following ? 'var(--cyan)' : '#05070A',
+                }}
+              >
+                {following ? `Following (${followerCount})` : `Follow (${followerCount})`}
+              </button>
+            </div>
           </div>
 
           {/* Thesis */}
-          <div className="section-header" style={{ marginBottom: '16px', borderBottom: '1px solid var(--line)', paddingBottom: '8px' }}>
-            <span className="label" style={{ textTransform: 'uppercase', fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.08em' }}>Thesis</span>
-          </div>
-          <blockquote style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 'var(--text-2xl)',
-            fontStyle: 'italic',
+          <h1 style={{
+            fontSize: 'clamp(24px, 3.2vw, 36px)',
+            fontWeight: 600,
+            lineHeight: 1.35,
+            letterSpacing: '-0.02em',
             color: 'var(--ink)',
-            lineHeight: 1.4,
-            marginBottom: '40px',
-            paddingLeft: '24px',
-            borderLeft: '3px solid var(--violet)',
+            margin: '0 0 20px',
+            fontFamily: 'var(--serif)',
           }}>
-            &ldquo;{idea.content ? idea.content.replace(/^["“'”]+|["“'”]+$/g, '').trim() : ''}&rdquo;
-          </blockquote>
+            {agent?.thesis || idea.content}
+          </h1>
 
-          {/* Social Share Bar */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '40px' }}>
-            <a
-              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-secondary btn-sm"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-              Share on X
-            </a>
-            <a
-              href={`https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-secondary btn-sm"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              Farcaster
-            </a>
-            <a
-              href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-secondary btn-sm"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              Telegram
-            </a>
-            <button
-              onClick={handleCopyLink}
-              className="btn btn-secondary btn-sm"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              {copied ? 'Copied! ✓' : 'Copy Link'}
-            </button>
-          </div>
-
-          {/* Confidence & Credibility */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '24px',
-            marginBottom: '40px',
-          }}>
-            <div className="card" style={{ textAlign: 'center' }}>
-              <span className="label" style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase' }}>Confidence</span>
-              <div style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '32px',
-                fontWeight: 700,
-                color: 'var(--violet)',
-                margin: '12px 0',
-              }}>
-                {confidence}%
-              </div>
-              <div className="confidence-bar" style={{ maxWidth: '200px', margin: '0 auto', background: 'var(--paper-2)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                <div className="confidence-fill" style={{ width: `${confidence}%`, background: 'var(--violet)', height: '100%' }}></div>
-              </div>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginTop: '8px' }}>
-                How strongly this Mind believes its thesis
-              </p>
-            </div>
-
-            <div className="card" style={{ textAlign: 'center' }}>
-              <span className="label" style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase' }}>Credibility</span>
-              <div style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '32px',
-                fontWeight: 700,
-                color: 'var(--ink)',
-                margin: '12px 0',
-              }}>
-                {credibility}
-              </div>
-              <div className="confidence-bar" style={{ maxWidth: '200px', margin: '0 auto', background: 'var(--paper-2)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                <div className="confidence-fill" style={{ width: `${credibility}%`, background: 'var(--ink)', height: '100%' }}></div>
-              </div>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginTop: '8px' }}>
-                Historical reliability based on evidence quality
-              </p>
-            </div>
-          </div>
-
-          {/* Reputation & Mind Value Row */}
-          {agent && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '24px',
-              marginBottom: '40px',
-            }}>
-              <div className="card" style={{ textAlign: 'center' }}>
-                <span className="label" style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase' }}>Estimated Mind Value</span>
-                <div style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '32px',
-                  fontWeight: 700,
-                  color: 'var(--violet)',
-                  margin: '12px 0',
-                }}>
-                  ${agent.estimatedValue.toLocaleString()}
-                </div>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>
-                  Estimated from reputation, evidence, attention and historical performance.
-                </p>
-              </div>
-
-              {/* Mind Shares Market Card */}
-              <div className="card" style={{ padding: 'var(--space-6)', border: '1px solid var(--border)' }}>
-                <span className="label" style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>
-                  Mind Shares
-                </span>
-                
-                {(() => {
-                  const repScore = Math.min(100, Math.max(10, Math.round(
-                    (agent.credibility * 0.4) + 
-                    ((agent.predictionAccuracy || 0.7) * 40) + 
-                    ((followers || 0) / 20) + 
-                    (agent.confidence * 0.1)
-                  )));
-                  
-                  const sharePrice = 0.10 + (repScore / 250);
-                  const formattedSharePrice = `$${sharePrice.toFixed(2)}`;
-                  
-                  const shareSupply = 100000;
-                  const calculatedMarketCap = shareSupply * sharePrice;
-                  const formattedMarketCap = `$${calculatedMarketCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-                  
-                  const holdersCount = Math.max(1, Math.floor((followers || 0) / 7) + 1);
-                  const dailyVolume = calculatedMarketCap * 0.20;
-                  const formattedVolume = `$${dailyVolume.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-
-                  const userAlloc = data?.userAllocation || 15; // default 15% founder share
-                  const userSharesCount = userAlloc * 1000;
-                  const userPositionValue = userSharesCount * sharePrice;
-                  const isDexActive = agent.lifecycleStatus === 'MARKET_ACTIVE';
-                  const tokenTicker = data?.mindAsset?.tokenTicker || data?.idea?.tokenTicker || (String(agent.id).toUpperCase() === 'MIND-590A' ? 'ACC' : 'MIND');
-                  const tokenName = data?.mindAsset?.tokenName || data?.idea?.tokenName || (String(agent.id).toUpperCase() === 'MIND-590A' ? 'Autonomous Cognitive Capital' : 'Mind Share');
-
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {/* Title & Price Row */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--ink)' }}>
-                              ${tokenTicker}
-                            </span>
-                            <span style={{ fontSize: '11px', color: 'var(--slate)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>
-                              {agent.id}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: '12px', color: 'var(--ink)', fontWeight: 600, marginTop: '2px' }}>
-                            {tokenName}
-                          </div>
-                          <div style={{ fontSize: 'var(--text-xs)', color: isDexActive ? '#16a34a' : 'var(--violet)', fontWeight: 600, marginTop: '2px' }}>
-                            {isDexActive ? '🚀 DEX LISTED (Uniswap v3)' : `⚡ BONDING CURVE (${agent.lifecycleStatus})`}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 700, color: '#16a34a' }}>
-                            {formattedSharePrice}
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>
-                            +18.4%
-                          </div>
-                        </div>
-                      </div>
-
-                      <hr style={{ border: '0', borderTop: '1px solid var(--border)', margin: '0' }} />
-
-                      {/* Grid Stats */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                        <div>
-                          <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Market Cap</div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--ink)' }}>
-                            {formattedMarketCap}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Holders</div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--ink)' }}>
-                            {holdersCount}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Volume (24h)</div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--ink)' }}>
-                            {formattedVolume}
-                          </div>
-                        </div>
-                      </div>
-
-                      <hr style={{ border: '0', borderTop: '1px solid var(--border)', margin: '0' }} />
-
-                      {/* Position Row */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)', padding: '10px 12px', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                        <div>
-                          <div style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Your Position (15% Founder Share)</div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--violet)' }}>
-                            {userSharesCount.toLocaleString()} {tokenTicker}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 700, color: '#16a34a' }}>
-                          ${userPositionValue.toFixed(2)}
-                        </div>
-                      </div>
-
-                      {/* Trade Buttons */}
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                        <button 
-                          className="btn btn-primary" 
-                          style={{ flex: 1, minHeight: '36px', fontSize: 'var(--text-xs)' }}
-                          onClick={() => {
-                            setTradeType('buy');
-                            setTradePercentage('1');
-                            setTradeState('idle');
-                            setTradeError('');
-                            setShowTradeModal(true);
-                          }}
-                        >
-                          Buy {tokenTicker} Shares
-                        </button>
-                        <button 
-                          className="btn btn-secondary" 
-                          style={{ flex: 1, minHeight: '36px', fontSize: 'var(--text-xs)' }}
-                          onClick={() => {
-                            setTradeType('sell');
-                            setTradePercentage('1');
-                            setTradeState('idle');
-                            setTradeError('');
-                            setShowTradeModal(true);
-                          }}
-                        >
-                          Sell {tokenTicker} Shares
-                        </button>
-                      </div>
-
-                      {/* DEX Graduation Progress & Controls */}
-                      {(() => {
-                        const tokenAddress = data?.mindAsset?.tokenAddress || '0x2cD4a125eA8d1f28dC0fdE1f241AAd2C96817B67';
-                        const poolAddress = data?.mindAsset?.poolAddress || '0xdFeeeC136Aa4808ffC8c1CE74dDE9A2Be01A7755';
-                        return isDexActive ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                            <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#16a34a', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontWeight: 600 }}>🚀 Token &amp; Uniswap v3 Pool Active on Base (${tokenTicker})</span>
-                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>LP Burned 🔥</span>
-                            </div>
-
-                            {/* Token Contract Address Banner */}
-                            <div style={{ background: 'var(--paper-2)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ color: 'var(--muted)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Token:</span>
-                                <a
-                                  href={`https://basescan.org/token/${tokenAddress}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink)', fontWeight: 600, textDecoration: 'underline' }}
-                                  title="View on BaseScan"
-                                >
-                                  {tokenAddress.slice(0, 8)}...{tokenAddress.slice(-6)}
-                                </a>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (typeof navigator !== 'undefined') {
-                                    navigator.clipboard.writeText(tokenAddress);
-                                    alert('Token Contract Address copied: ' + tokenAddress);
-                                  }
-                                }}
-                                style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid var(--violet)', color: 'var(--violet)', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 600 }}
-                              >
-                                Copy Address 📋
-                              </button>
-                            </div>
-
-                            {/* Live DEX & LP Explorer Links */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                              <a
-                                href={`https://dexscreener.com/base/${poolAddress}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-secondary btn-sm"
-                                style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
-                              >
-                                📊 DexScreener ↗
-                              </a>
-                              <a
-                                href={`https://www.dextools.io/app/en/base/pair-explorer/${poolAddress}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-secondary btn-sm"
-                                style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
-                              >
-                                🛠️ DEXTools ↗
-                              </a>
-                              <a
-                                href={`https://basescan.org/address/${poolAddress}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-secondary btn-sm"
-                                style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
-                              >
-                                🦄 Uniswap v3 Pool ↗
-                              </a>
-                              <a
-                                href={`https://basescan.org/token/${tokenAddress}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-secondary btn-sm"
-                                style={{ fontSize: '10px', minHeight: '30px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}
-                              >
-                                🔍 BaseScan Token ↗
-                              </a>
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', marginTop: '4px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '6px' }}>
-                              <span style={{ color: 'var(--muted)' }}>DEX Graduation Progress</span>
-                              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--violet)', fontWeight: 600 }}>
-                                {agent.lifecycleStatus} ➔ DEX LISTED
-                              </span>
-                            </div>
-                            <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden', marginBottom: '8px' }}>
-                              <div style={{
-                                width: agent.lifecycleStatus === 'PROVEN' ? '75%' : agent.lifecycleStatus === 'EMERGING' ? '50%' : '25%',
-                                height: '100%',
-                                background: 'linear-gradient(90deg, var(--violet), #16a34a)'
-                              }}></div>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontSize: '10px', color: 'var(--slate)' }}>Target: $50k MCAP &amp; Gates</span>
-                              <button
-                                type="button"
-                                onClick={() => handleGraduateLifecycle()}
-                                disabled={isGraduating}
-                                style={{
-                                  background: 'rgba(168,85,247,0.15)',
-                                  border: '1px solid var(--violet)',
-                                  color: '#fff',
-                                  fontSize: '10px',
-                                  padding: '4px 8px',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  fontWeight: 600
-                                }}
-                              >
-                                {isGraduating ? 'Graduating...' : 'Advance Stage / Test DEX ↗'}
-                              </button>
-                            </div>
-                            {/* Token Contract & Analytics Links */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border)', fontSize: '10px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span style={{ color: 'var(--muted)' }}>Contract:</span>
-                                <a
-                                  href={`https://basescan.org/token/${tokenAddress}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{ fontFamily: 'var(--font-mono)', color: 'var(--violet)', fontWeight: 600 }}
-                                >
-                                  {tokenAddress.slice(0, 6)}...{tokenAddress.slice(-4)} ↗
-                                </a>
-                              </div>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <a
-                                  href={`https://dexscreener.com/base/${tokenAddress}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 600 }}
-                                >
-                                  DexScreener ↗
-                                </a>
-                                <a
-                                  href={`https://www.dextools.io/app/en/base/pair-explorer/${tokenAddress}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{ color: 'var(--violet)', textDecoration: 'none', fontWeight: 600 }}
-                                >
-                                  DEXTools ↗
-                                </a>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* Compute Budget Card */}
-          {agent && (
-            <div className="card" style={{ marginBottom: '40px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <span className="label" style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--muted)' }}>Mind Economics & Compute Budget</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--violet)', fontWeight: 600 }}>
-                  Active Allocation: pay-per-use
-                </span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', textAlign: 'center' }}>
-                <div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginBottom: '4px' }}>Initial Budget</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--ink)' }}>
-                    {agent.computeBudget.toFixed(2)} USDC
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginBottom: '4px' }}>Compute Spent</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--coral)' }}>
-                    {agent.computeSpent.toFixed(4)} USDC
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginBottom: '4px' }}>Remaining Budget</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--violet)' }}>
-                    {agent.computeRemaining.toFixed(4)} USDC
-                  </div>
-                </div>
-              </div>
-              <div className="confidence-bar" style={{ height: '6px', marginTop: '16px', background: 'var(--paper-2)', borderRadius: '3px', overflow: 'hidden' }}>
-                <div 
-                  className="confidence-fill" 
-                  style={{ 
-                    width: `${Math.max(0, Math.min(100, (agent.computeRemaining / agent.computeBudget) * 100))}%`, 
-                    background: 'var(--violet)',
-                    height: '100%'
-                  }}
-                ></div>
-              </div>
-            </div>
-          )}
-
-          {/* Phase 2: Anchor Prediction Callout */}
-          {(!data.predictions || data.predictions.length === 0) && (
-            <div className="card" style={{
-              marginBottom: '32px',
-              border: '2px solid var(--violet)',
-              background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(0,0,0,0.2))',
-              padding: '24px',
-              borderRadius: '12px',
-              boxShadow: '0 0 24px rgba(168,85,247,0.15)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <span style={{
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  background: 'var(--violet)',
-                  color: '#fff',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-mono)'
-                }}>
-                  PHASE 2 / NEXT STEP
-                </span>
-                <span style={{ fontSize: '12px', color: 'var(--slate)' }}>
-                  Testable Prediction Required for Evidence Crawling & Debates
-                </span>
-              </div>
-
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', color: 'var(--ink)', margin: '8px 0' }}>
-                🎯 Anchor Your Thesis with a Testable Prediction
-              </h3>
-              
-              <p style={{ fontSize: '13px', color: 'var(--slate)', lineHeight: 1.5, marginBottom: '16px' }}>
-                To enable your autonomous Mind to gather real-world citations, construct 5-round debate arguments, and graduate toward DEX liquidity, define its first testable prediction.
-              </p>
-
-              {/* Quick Suggestion Pill */}
-              <div style={{ marginBottom: '16px' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const suggestion = `${idea.content.slice(0, 100).trim()} will achieve verifiable mainstream adoption by 2028.`;
-                    setPredictionClaim(suggestion);
-                  }}
+          {/* Creator & Origin Info */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--muted)' }}>
+              <span>Originator:</span>
+              {data.creator?.walletAddress ? (
+                <Link
+                  href={`/profile/${data.creator.username || data.creator.walletAddress}`}
                   style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px dashed var(--violet)',
-                    color: 'var(--ink)',
-                    padding: '8px 14px',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    width: '100%',
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '8px'
+                    gap: '6px',
+                    fontFamily: 'var(--mono)',
+                    color: '#38BDF8',
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                    background: 'rgba(56, 189, 248, 0.1)',
+                    padding: '2px 8px',
+                    borderRadius: '100px',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <span style={{ color: 'var(--violet)', fontWeight: 700 }}>💡 Auto Suggestion:</span>
-                  <span style={{ fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    "{idea.content.slice(0, 80)}... will achieve verifiable adoption by 2028."
-                  </span>
-                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--violet)' }}>Use ↗</span>
-                </button>
-              </div>
-
-              {/* Form */}
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleAnchorPrediction();
-              }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                    Prediction / Claim
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. By 2028, autonomous AI agents will manage over 40% of decentralized liquidity."
-                    value={predictionClaim}
-                    onChange={(e) => setPredictionClaim(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '6px',
-                      background: 'rgba(0,0,0,0.4)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--ink)',
-                      fontSize: '14px',
-                    }}
-                    required
-                  />
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--slate)' }}>Initial Confidence:</span>
-                    <input
-                      type="range"
-                      min="10"
-                      max="99"
-                      value={predictionConfidence}
-                      onChange={(e) => setPredictionConfidence(Number(e.target.value))}
-                      style={{ width: '120px', accentColor: 'var(--violet)' }}
-                    />
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: 'var(--violet)' }}>
-                      %{predictionConfidence}
-                    </span>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="primary-button"
-                    disabled={isSubmittingPrediction || !predictionClaim.trim()}
-                    style={{ minHeight: '38px', padding: '0 20px', fontSize: '13px' }}
-                  >
-                    {isSubmittingPrediction ? 'Awakening Mind...' : 'Lock Prediction & Awaken Deep Search 🚀'}
-                  </button>
-                </div>
-
-                {predictionSuccessMessage && (
-                  <div style={{ padding: '10px', borderRadius: '6px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80', fontSize: '12px', textAlign: 'center' }}>
-                    {predictionSuccessMessage}
-                  </div>
-                )}
-              </form>
-            </div>
-          )}
-
-          {/* Section Tabs */}
-          <div className="feed-tabs">
-            {(['arguments', 'evidence', 'predictions', 'activity'] as const).map((s) => (
-              <button
-                key={s}
-                className={`feed-tab ${activeSection === s ? 'active' : ''}`}
-                onClick={() => setActiveSection(s)}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-
-          {/* Arguments Section */}
-          {activeSection === 'arguments' && (
-            <div className="animate-fade-in">
-              {mindState?.arguments && mindState.arguments.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {mindState.arguments.map((arg, i) => (
-                    <div key={arg.id || i} className="card">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span className="label" style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase' }}>Argument {i + 1}</span>
-                        <span style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: 'var(--text-xs)',
-                          color: arg.strength > 0.7 ? 'var(--violet)' : arg.strength > 0.4 ? 'var(--muted)' : 'var(--muted)',
-                          fontWeight: 600
-                        }}>
-                          Strength: {(arg.strength * 100).toFixed(0)}%
-                        </span>
-                      </div>
-                      <p style={{ color: 'var(--ink)', lineHeight: 1.6 }}>{arg.content}</p>
-                    </div>
-                  ))}
-                </div>
+                  <span>👤 @{data.creator.username || `${data.creator.walletAddress.slice(0, 6)}...${data.creator.walletAddress.slice(-4)}`}</span>
+                </Link>
               ) : (
-                <div className="empty-state" style={{ padding: '32px' }}>
-                  <div className="loading-text" style={{ color: 'var(--muted)' }}>
-                    Mind is forming arguments...
-                  </div>
+                <span style={{ fontFamily: 'var(--mono)', color: 'var(--ink)' }}>Sovereign Author</span>
+              )}
+            </div>
+
+            {/* Epistemic Calibration Display */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {agent && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Assessed Confidence:</span>
+                  <span style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    color: agent.confidence > 75 ? 'var(--cyan)' : agent.confidence > 45 ? '#F59E0B' : '#F43F5E',
+                  }}>
+                    {evidenceList.length > 0 || agent.confidence !== 50 ? `${agent.confidence.toFixed(1)}%` : 'Not yet assessed'}
+                  </span>
                 </div>
               )}
+            </div>
+          </div>
 
-              {/* Counter Arguments */}
-              {mindState?.counterArguments && mindState.counterArguments.length > 0 && (
-                <div style={{ marginTop: '32px' }}>
-                  <div className="section-header" style={{ marginBottom: '16px', borderBottom: '1px solid var(--line)', paddingBottom: '8px' }}>
-                    <span className="label" style={{ textTransform: 'uppercase', fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.08em' }}>Counter-Arguments</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {mindState.counterArguments.map((ca, i) => (
-                      <div key={ca.id || i} className="card" style={{ borderColor: 'var(--coral)' }}>
-                        <span className="label" style={{ color: 'var(--coral)', fontSize: '11px', textTransform: 'uppercase' }}>Counter {i + 1}</span>
-                        <p style={{ color: 'var(--ink)', lineHeight: 1.6, marginTop: '8px' }}>{ca.content}</p>
-                      </div>
+          {/* Latest Update Banner */}
+          {latestEvent && (
+            <div style={{
+              marginTop: '20px',
+              background: 'rgba(79, 195, 247, 0.05)',
+              border: '1px solid rgba(79, 195, 247, 0.2)',
+              borderRadius: '12px',
+              padding: '12px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '12px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--cyan)' }} />
+                <span style={{ color: 'var(--muted)' }}>Latest Development:</span>
+                <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{latestEvent.content}</span>
+              </div>
+              <span style={{ color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: '11px' }}>
+                {new Date(latestEvent.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+          )}
+        </header>
+
+        {/* ─── DOSSIER TABS ─── */}
+        <div style={{
+          display: 'flex',
+          borderBottom: '1px solid var(--border)',
+          marginBottom: '32px',
+          gap: '12px',
+          overflowX: 'auto',
+        }}>
+          {[
+            { id: 'overview', label: 'Overview' },
+            { id: 'evidence', label: `Evidence (${evidenceList.length})` },
+            { id: 'debate', label: `Debate (${argumentsList.length})` },
+            { id: 'predictions', label: `Predictions (${predictionsList.length})` },
+            { id: 'history', label: `History (${eventsList.length})` },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id as TabType)}
+              style={{
+                background: 'transparent',
+                border: 0,
+                borderBottom: `2px solid ${activeTab === t.id ? 'var(--cyan)' : 'transparent'}`,
+                color: activeTab === t.id ? 'var(--cyan)' : 'var(--muted)',
+                fontWeight: activeTab === t.id ? 600 : 500,
+                fontSize: '14px',
+                padding: '12px 18px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ─── TAB 1: OVERVIEW ─── */}
+        {activeTab === 'overview' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+            <div style={{ background: 'var(--bg-card, #0E131A)', border: '1px solid var(--border)', borderRadius: '20px', padding: '28px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--ink)', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Core Breakdown & Assumptions
+              </h3>
+              <p style={{ fontSize: '15px', color: 'var(--ink)', lineHeight: 1.7, margin: '0 0 20px' }}>
+                {agent?.thesis || idea.content}
+              </p>
+
+              {(agent as any)?.assumptions && (
+                <div style={{ marginTop: '16px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+                    Identified Assumptions:
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                    {(Array.isArray((agent as any).assumptions) ? (agent as any).assumptions : JSON.parse((agent as any).assumptions || '[]')).map((asm: string, i: number) => (
+                      <span key={i} style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', color: 'var(--muted)' }}>
+                        • {asm}
+                      </span>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-          )}
 
-          {/* Evidence Section */}
-          {activeSection === 'evidence' && (
-            <div className="animate-fade-in">
-              {/* Evidence Filter Tabs & Search Action */}
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {(['all', 'supporting', 'opposing'] as const).map((tab) => {
-                    const count = tab === 'all' 
-                      ? (mindState?.allEvidence?.length || 0)
-                      : tab === 'supporting'
-                      ? (mindState?.evidence?.length || 0)
-                      : (mindState?.counterEvidence?.length || 0);
-                    return (
-                      <button
-                        key={tab}
-                        onClick={() => setEvidenceTab(tab)}
-                        className={`btn btn-sm ${evidenceTab === tab ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ textTransform: 'uppercase', fontSize: 'var(--text-xs)' }}
-                      >
-                        {tab} ({count})
-                      </button>
-                    );
-                  })}
+            {/* Jump Navigation Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
+              <div
+                onClick={() => setActiveTab('evidence')}
+                style={{ background: 'var(--bg-card, #0E131A)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '18px' }}>📚</span>
+                  <span style={{ fontSize: '12px', color: 'var(--cyan)' }}>{evidenceList.length} Sources →</span>
                 </div>
-                {agent && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        await fetch(`/api/agents/${agent.id}/refresh`, { method: 'POST' });
-                        const res = await fetch(`/api/ideas/${ideaId}?walletAddress=${address || ''}`);
-                        if (res.ok) setData(await res.json());
-                      } catch (err) {
-                        console.error(err);
-                      }
-                    }}
-                    className="btn btn-secondary btn-sm"
-                    style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    ⚡ Search New Evidence
-                  </button>
-                )}
+                <h4 style={{ fontSize: '16px', color: 'var(--ink)', margin: '0 0 6px' }}>Indexed Evidence</h4>
+                <p style={{ fontSize: '12px', color: 'var(--muted)', margin: 0 }}>Grounded peer and news citations confirming or challenging this claim.</p>
               </div>
 
-              {/* Evidence List */}
-              {(() => {
-                const list = (mindState?.allEvidence || []).filter(ev => {
-                  const dir = String(ev.direction || ev.stance || '').toUpperCase();
-                  if (evidenceTab === 'supporting') return dir === 'SUPPORTING';
-                  if (evidenceTab === 'opposing') return dir === 'OPPOSING';
-                  return true;
-                });
-
-                if (list.length === 0) {
-                  return (
-                    <div className="empty-state" style={{ padding: '32px' }}>
-                      <p style={{ color: 'var(--muted)' }}>No evidence found for this category.</p>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    {list.map((ev) => {
-                      const isSupporting = String(ev.direction || ev.stance || '').toUpperCase() === 'SUPPORTING';
-                      const impactCol = isSupporting ? 'var(--violet)' : 'var(--coral)';
-                      const impactSign = ev.confidenceImpact > 0 ? `+${ev.confidenceImpact}` : ev.confidenceImpact;
-
-                      return (
-                        <div key={ev.id} className="card" style={{ borderLeft: `4px solid ${isSupporting ? 'var(--violet)' : 'var(--coral)'}` }}>
-                          {/* Card Header */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <span className="badge badge-neutral">
-                                {ev.sourceType || 'NEWS'}
-                              </span>
-                              <span className={`badge ${isSupporting ? 'badge-signal' : 'badge-opposing'}`}>
-                                {ev.direction}
-                              </span>
-                            </div>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', fontWeight: 600, color: impactCol }}>
-                              Impact: {impactSign}% confidence
-                            </span>
-                          </div>
-
-                          {/* Claim */}
-                          <h4 style={{ color: 'var(--ink)', fontSize: 'var(--text-md)', fontWeight: 600, lineHeight: 1.5, marginBottom: '16px' }}>
-                            {ev.claim || ev.title}
-                          </h4>
-
-                          {/* Scores Grid */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', background: 'var(--paper-2)', padding: '12px', marginBottom: '16px', textAlign: 'center', fontSize: 'var(--text-xs)' }}>
-                            <div>
-                              <div style={{ color: 'var(--muted)', marginBottom: '2px' }}>Reliability</div>
-                              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink)' }}>{ev.reliabilityScore || 50}</div>
-                            </div>
-                            <div>
-                              <div style={{ color: 'var(--muted)', marginBottom: '2px' }}>Relevance</div>
-                              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink)' }}>{ev.relevanceScore || 50}</div>
-                            </div>
-                            <div>
-                              <div style={{ color: 'var(--muted)', marginBottom: '2px' }}>Strength</div>
-                              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink)' }}>{ev.strengthScore || 50}</div>
-                            </div>
-                          </div>
-
-                          {/* Reasoning */}
-                          {ev.claim && (
-                            <div style={{ marginBottom: '16px' }}>
-                              <span className="label" style={{ fontSize: '10px', display: 'block', marginBottom: '4px', color: 'var(--muted)', textTransform: 'uppercase' }}>MIND'S INTERPRETATION</span>
-                              <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)', fontStyle: 'italic', lineHeight: 1.5 }}>
-                                &ldquo;{ev.snippet || ev.claim}&rdquo;
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Footer */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--line)' }}>
-                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>
-                              {ev.sourceName} {ev.publishedAt ? `· ${new Date(ev.publishedAt).toLocaleDateString([], { month: 'short', year: 'numeric' })}` : ''}
-                            </span>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              {ev.sourceUrl && (
-                                <a href={ev.sourceUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-xs" style={{ fontSize: '10px', padding: '3px 8px', minHeight: '26px' }}>
-                                  View Source
-                                </a>
-                              )}
-                              <button onClick={() => {
-                                setActiveEvidenceId(ev.id);
-                                setShowChallengeModal(true);
-                                setChallengeState('idle');
-                                setChallengeError('');
-                              }} className="btn btn-secondary btn-xs" style={{ fontSize: '10px', padding: '3px 8px', minHeight: '26px' }}>
-                                Challenge
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* Predictions Tab */}
-          {activeSection === 'predictions' && (
-            <div className="animate-fade-in">
-              {/* Track Record Stats Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px', textAlign: 'center' }}>
-                <div className="card" style={{ padding: '16px' }}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginBottom: '4px' }}>Prediction Accuracy</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 600, color: 'var(--violet)' }}>
-                    {agent ? `${Math.round(agent.predictionAccuracy * 100)}%` : '0%'}
-                  </div>
+              <div
+                onClick={() => setActiveTab('debate')}
+                style={{ background: 'var(--bg-card, #0E131A)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '18px' }}>⚔️</span>
+                  <span style={{ fontSize: '12px', color: 'var(--cyan)' }}>{argumentsList.length} Debates →</span>
                 </div>
-                <div className="card" style={{ padding: '16px' }}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginBottom: '4px' }}>Calibration Score</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 600, color: 'var(--ink)' }}>
-                    {agent ? Math.round(agent.calibrationScore) : 100}
-                  </div>
-                </div>
-                <div className="card" style={{ padding: '16px' }}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginBottom: '4px' }}>Total Predictions</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', fontWeight: 600, color: 'var(--violet)' }}>
-                    {data.predictions?.length || 0}
-                  </div>
-                </div>
+                <h4 style={{ fontSize: '16px', color: 'var(--ink)', margin: '0 0 6px' }}>Adversarial Debate</h4>
+                <p style={{ fontSize: '12px', color: 'var(--muted)', margin: 0 }}>Pro and con arguments stress-testing the thesis with community input.</p>
               </div>
 
-              {/* Creator Prediction Submission Form */}
-              <div className="card" style={{ marginBottom: '24px' }}>
-                <h4 style={{ color: 'var(--ink)', fontSize: 'var(--text-sm)', marginBottom: '12px' }}>Derive New Prediction from Thesis</h4>
-                <form onSubmit={async (e) => {
-                  e.preventDefault();
-                  const form = e.currentTarget;
-                  const formData = new FormData(form);
-                  const claim = formData.get('claim') as string;
-                  const confidence = formData.get('confidence') as string;
-                  if (!claim) return;
-
-                  try {
-                    const targetMindId = agent?.id || data?.agent?.id || idea.id || ideaId;
-                    const res = await fetch(`/api/minds/${targetMindId}/predictions`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        claim,
-                        confidenceAtCreation: Number(confidence) || 50,
-                      }),
-                    });
-                    if (res.ok) {
-                      const result = await res.json();
-                      setData(prev => prev ? {
-                        ...prev,
-                        predictions: [result.prediction, ...(prev.predictions || [])]
-                      } : null);
-                      form.reset();
-                      const detailRes = await fetch(`/api/ideas/${idea.id}`);
-                      if (detailRes.ok) {
-                        const detailResult = await detailRes.json();
-                        setData(detailResult);
-                      }
-                    }
-                  } catch (err) {
-                    console.error('Failed to submit prediction:', err);
-                  }
-                }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <input
-                    name="claim"
-                    type="text"
-                    placeholder="Enter claim (e.g. By Dec 2030, AI agents will account for >50% of internet traffic)"
-                    style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '8px 12px', borderRadius: '0', fontSize: 'var(--text-sm)', width: '100%' }}
-                    required
-                  />
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>Confidence:</span>
-                      <input
-                        name="confidence"
-                        type="number"
-                        min="1"
-                        max="100"
-                        defaultValue="80"
-                        style={{ width: '70px', background: 'var(--paper-2)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '4px 8px', borderRadius: '0', fontSize: 'var(--text-sm)', fontFamily: 'var(--font-mono)' }}
-                      />
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>%</span>
-                    </div>
-                    <button type="submit" className="btn btn-primary btn-sm">
-                      Submit Prediction
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Predictions List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {data.predictions && data.predictions.length > 0 ? (
-                  data.predictions.map((pred) => {
-                    const isOpen = pred.status === 'OPEN';
-                    const isTrue = pred.status === 'RESOLVED_TRUE';
-                    const badgeCol = isTrue ? 'var(--violet)' : isOpen ? 'var(--violet)' : 'var(--coral)';
-
-                    return (
-                      <div key={pred.id} className="card" style={{ padding: '16px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span className="badge badge-neutral" style={{ color: badgeCol }}>
-                            {pred.status}
-                          </span>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>
-                            Confidence: {pred.confidenceAtCreation}%
-                          </span>
-                        </div>
-                        <p style={{ color: 'var(--ink)', fontSize: 'var(--text-sm)', fontWeight: 600, lineHeight: 1.5, marginBottom: '12px' }}>
-                          {pred.claim}
-                        </p>
-                        {isOpen && (
-                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const res = await fetch(`/api/predictions/${pred.id}/resolve`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      status: 'RESOLVED_TRUE',
-                                      confidenceAtResolution: 90,
-                                      outcome: 'Verified correct by oracle resolver API.',
-                                    }),
-                                  });
-                                  if (res.ok) {
-                                    const detailRes = await fetch(`/api/ideas/${idea.id}`);
-                                    if (detailRes.ok) {
-                                      const detailResult = await detailRes.json();
-                                      setData(detailResult);
-                                    }
-                                  }
-                                } catch (err) {
-                                  console.error(err);
-                                }
-                              }}
-                              className="btn btn-secondary btn-xs"
-                              style={{ color: 'var(--violet)', borderColor: 'rgba(76,175,80,0.3)', padding: '3px 8px', fontSize: '10px' }}
-                            >
-                              Resolve True ✓
-                            </button>
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const res = await fetch(`/api/predictions/${pred.id}/resolve`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      status: 'RESOLVED_FALSE',
-                                      confidenceAtResolution: 10,
-                                      outcome: 'Verified incorrect by oracle resolver API.',
-                                    }),
-                                  });
-                                  if (res.ok) {
-                                    const detailRes = await fetch(`/api/ideas/${idea.id}`);
-                                    if (detailRes.ok) {
-                                      const detailResult = await detailRes.json();
-                                      setData(detailResult);
-                                    }
-                                  }
-                                } catch (err) {
-                                  console.error(err);
-                                }
-                              }}
-                              className="btn btn-secondary btn-xs"
-                              style={{ color: 'var(--coral)', borderColor: 'rgba(239,83,80,0.3)', padding: '3px 8px', fontSize: '10px' }}
-                            >
-                              Resolve False ✕
-                            </button>
-                          </div>
-                        )}
-                        {pred.outcome && (
-                          <div style={{ background: 'var(--paper-2)', padding: '8px', fontSize: 'var(--text-xs)', color: 'var(--muted)', marginTop: '8px' }}>
-                            <strong>Outcome:</strong> {pred.outcome}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)', textAlign: 'center' }}>No predictions derived yet.</p>
-                )}
+              <div
+                onClick={() => setActiveTab('predictions')}
+                style={{ background: 'var(--bg-card, #0E131A)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '18px' }}>🎯</span>
+                  <span style={{ fontSize: '12px', color: 'var(--cyan)' }}>{predictionsList.length} Predictions →</span>
+                </div>
+                <h4 style={{ fontSize: '16px', color: 'var(--ink)', margin: '0 0 6px' }}>Testable Predictions</h4>
+                <p style={{ fontSize: '12px', color: 'var(--muted)', margin: 0 }}>Empirical milestones with explicit deadlines and immutable verification terms.</p>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Activity Timeline */}
-          {activeSection === 'activity' && (
-            <div className="animate-fade-in">
-              {mindState?.memory?.eventHistory && mindState.memory.eventHistory.length > 0 ? (
-                <div className="timeline-list">
-                  {mindState.memory.eventHistory.slice(0, 20).map((event, i) => (
-                    <div key={event.id || i} className="timeline-item">
-                      <div className={`timeline-dot ${getEventDotClass(event.eventType)}`}></div>
-                      <div className="timeline-content">
-                        <span className="timeline-time">
-                          {new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <p className="timeline-text">{formatEventLabel(event.eventType)}</p>
-                        <p className="timeline-detail">{event.content}</p>
-                        {event.confidenceBefore != null && event.confidenceAfter != null && (
-                          <p style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 'var(--text-xs)',
-                            color: event.confidenceAfter > event.confidenceBefore ? 'var(--violet)' : 'var(--coral)',
-                            marginTop: '4px',
-                            fontWeight: 600
-                          }}>
-                            {event.confidenceBefore}% → {event.confidenceAfter}%
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state" style={{ padding: '32px' }}>
-                  <div className="loading-text" style={{ color: 'var(--muted)' }}>
-                    Waiting for activity...
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-        </div>
-      </main>
-
-      {/* Challenge Modal */}
-      {showChallengeModal && (
-        <div className="challenge-modal-overlay" onClick={() => setShowChallengeModal(false)}>
-          <div className="challenge-modal" onClick={e => e.stopPropagation()}>
-            <button className="challenge-modal-close" onClick={() => setShowChallengeModal(false)}>×</button>
-
-            <div className="challenge-modal-icon">⚔️</div>
-            <h3>Challenge This Evidence</h3>
-            <p>
-              Challenging evidence initiates a structured debate between your counter-thesis and this Mind&apos;s position. The debate follows MINDCAST&apos;s rigorous 5-round protocol:
-            </p>
-
-            <div className="challenge-modal-rounds">
-              <div className="challenge-modal-round">
-                <span className="challenge-modal-round-num">1</span>
-                <span>Opening Statements — Each side presents their core thesis</span>
-              </div>
-              <div className="challenge-modal-round">
-                <span className="challenge-modal-round-num">2</span>
-                <span>Evidence Presentation — Supporting data and sources are cited</span>
-              </div>
-              <div className="challenge-modal-round">
-                <span className="challenge-modal-round-num">3</span>
-                <span>Cross-Examination — Each side challenges opposing evidence</span>
-              </div>
-              <div className="challenge-modal-round">
-                <span className="challenge-modal-round-num">4</span>
-                <span>Rebuttal — Responses to cross-examination points</span>
-              </div>
-              <div className="challenge-modal-round">
-                <span className="challenge-modal-round-num">5</span>
-                <span>Closing Arguments — Final synthesis and confidence update</span>
-              </div>
+        {/* ─── TAB 2: EVIDENCE ─── */}
+        {activeTab === 'evidence' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Filter buttons */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['all', 'supporting', 'opposing'] as const).map(filter => (
+                <button
+                  key={filter}
+                  onClick={() => setEvidenceFilter(filter)}
+                  style={{
+                    background: evidenceFilter === filter ? 'rgba(79, 195, 247, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                    border: `1px solid ${evidenceFilter === filter ? 'var(--cyan)' : 'var(--border)'}`,
+                    color: evidenceFilter === filter ? 'var(--cyan)' : 'var(--muted)',
+                    borderRadius: '8px',
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {filter} Evidence
+                </button>
+              ))}
             </div>
 
-            <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '20px' }}>
-              Initiating a challenge costs <strong style={{ color: 'var(--violet)' }}>2 USDC</strong> and creates a new opposing Mind that will debate this position.
-            </p>
-
-            {isConnected ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {challengeState === 'idle' && (
-                  <button
-                    className="btn btn-primary"
-                    style={{ width: '100%' }}
-                    onClick={handleInitiateChallenge}
-                  >
-                    Initiate Challenge
-                  </button>
-                )}
-                {challengeState === 'preparing' && (
-                  <button className="btn btn-primary" style={{ width: '100%', opacity: 0.7 }} disabled>
-                    Preparing opposing Mind...
-                  </button>
-                )}
-                {challengeState === 'paying' && (
-                  <button className="btn btn-primary" style={{ width: '100%', opacity: 0.7 }} disabled>
-                    Approve 2 USDC in Wallet...
-                  </button>
-                )}
-                {challengeState === 'verifying' && (
-                  <button className="btn btn-primary" style={{ width: '100%', opacity: 0.7 }} disabled>
-                    Verifying on-chain payment...
-                  </button>
-                )}
-                {challengeState === 'success' && (
-                  <div style={{ color: 'var(--lime)', fontSize: '14px', fontWeight: 600, textAlign: 'center', padding: '8px' }}>
-                    ✓ Challenge Initiated! Starting debate...
-                  </div>
-                )}
-                {challengeState === 'error' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div className="error-state" style={{ marginTop: '0' }}>
-                      {challengeError}
-                    </div>
-                    <button
-                      className="btn btn-primary"
-                      style={{ width: '100%' }}
-                      onClick={handleInitiateChallenge}
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                )}
+            {filteredEvidence.length === 0 ? (
+              <div style={{ background: 'var(--bg-card, #0E131A)', border: '1px solid var(--border)', borderRadius: '16px', padding: '48px', textAlign: 'center' }}>
+                <p style={{ color: 'var(--muted)', margin: 0 }}>No evidence records matching this category.</p>
               </div>
             ) : (
-              <button
-                className="btn btn-primary"
-                style={{ width: '100%' }}
-                onClick={() => {
-                  setShowChallengeModal(false);
-                  connect();
-                }}
-              >
-                Connect Wallet to Challenge
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {filteredEvidence.map((ev) => {
+                  const isSupp = ev.direction === 'SUPPORTING' || ev.stance === 'SUPPORTING';
+                  return (
+                    <div
+                      key={ev.id}
+                      style={{
+                        background: 'var(--bg-card, #0E131A)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '16px',
+                        padding: '24px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{
+                            padding: '3px 8px',
+                            borderRadius: '9999px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            background: isSupp ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                            color: isSupp ? '#10B981' : '#F43F5E',
+                            border: `1px solid ${isSupp ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+                          }}>
+                            {isSupp ? '✓ Supports' : '✗ Challenges'}
+                          </span>
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>
+                            {ev.sourceName || ev.source || 'Verified Source'}
+                          </span>
+                          {ev.publishedAt && (
+                            <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                              ({new Date(ev.publishedAt).toLocaleDateString()})
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => setFlagModalEvidence(ev)}
+                          style={{ background: 'transparent', border: 0, color: 'var(--muted)', fontSize: '11px', cursor: 'pointer' }}
+                        >
+                          🚩 Flag Source
+                        </button>
+                      </div>
+
+                      <p style={{ fontSize: '14px', color: 'var(--ink)', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
+                        "{ev.claim || ev.snippet || ev.title}"
+                      </p>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', fontSize: '12px' }}>
+                        <span style={{ color: 'var(--muted)' }}>
+                          Reliability: <strong style={{ color: 'var(--ink)' }}>{ev.reliabilityScore || 85}/100</strong> · Impact: <strong style={{ color: isSupp ? '#10B981' : '#F43F5E' }}>{ev.confidenceImpact ? `${ev.confidenceImpact > 0 ? '+' : ''}${ev.confidenceImpact}%` : 'Direct'}</strong>
+                        </span>
+
+                        {ev.sourceUrl && (
+                          <a
+                            href={ev.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: 'var(--cyan)', textDecoration: 'none', fontWeight: 500 }}
+                          >
+                            Read Full Source ↗
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Trade Modal (Buy/Sell Shares) */}
-      {showTradeModal && (
-        <div className="challenge-modal-overlay" onClick={() => setShowTradeModal(false)}>
-          <div className="challenge-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-            <button className="challenge-modal-close" onClick={() => setShowTradeModal(false)}>×</button>
+        {/* ─── TAB 3: DEBATE ─── */}
+        {activeTab === 'debate' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Agent Compute Research Sponsorship Banner */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(79, 195, 247, 0.08) 0%, rgba(129, 140, 248, 0.06) 100%)',
+              border: '1px solid rgba(79, 195, 247, 0.25)',
+              borderRadius: '20px',
+              padding: '20px 24px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              boxShadow: '0 8px 32px -8px rgba(0,0,0,0.4)',
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '18px' }}>⚡</span>
+                  <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#F8FAFC', margin: 0 }}>
+                    Agent Research Compute: {agent?.computeRemaining?.toFixed(1) || '1.0'} / {agent?.computeBudget?.toFixed(1) || '1.0'} CU
+                  </h4>
+                </div>
+                <p style={{ fontSize: '13px', color: '#94A3B8', margin: 0, maxWidth: '580px', lineHeight: 1.5 }}>
+                  Fund this autonomous Mind with USDC to trigger deep literature synthesis, run adversarial counter-argument searches, and stress-test opposing hypotheses.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsSponsorModalOpen(true)}
+                className="btn"
+                style={{
+                  background: '#4FC3F7',
+                  color: '#05070A',
+                  fontWeight: 800,
+                  fontSize: '13px',
+                  padding: '10px 22px',
+                  borderRadius: '100px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 16px rgba(79, 195, 247, 0.35)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                ⚡ Sponsor Research Compute
+              </button>
+            </div>
 
-            {(() => {
-              const tokenTicker = data?.mindAsset?.tokenTicker || data?.idea?.tokenTicker || (String(agent?.id).toUpperCase() === 'MIND-590A' ? 'ACC' : 'MIND');
-              const tokenName = data?.mindAsset?.tokenName || data?.idea?.tokenName || (String(agent?.id).toUpperCase() === 'MIND-590A' ? 'Autonomous Cognitive Capital' : 'Mind Share');
-              return (
-                <>
-                  <div className="challenge-modal-icon" style={{ backgroundColor: tradeType === 'buy' ? 'oklch(82% 0.19 121 / 0.12)' : 'oklch(68% 0.19 28 / 0.12)' }}>
-                    {tradeType === 'buy' ? '📈' : '📉'}
-                  </div>
-                  <h3>{tradeType === 'buy' ? `Buy $${tokenTicker} Shares` : `Sell $${tokenTicker} Shares`}</h3>
-                  <div style={{ fontSize: '11px', color: 'var(--violet)', fontWeight: 600, marginBottom: '6px' }}>
-                    🪙 {tokenName}
-                  </div>
-                  <p style={{ marginBottom: '16px' }}>
-                    {tradeType === 'buy' 
-                      ? `Acquire $${tokenTicker} shares on the Base bonding curve to increase your position and backing.` 
-                      : `Sell $${tokenTicker} shares back to the bonding curve vault in exchange for USDC.`}
-                  </p>
-                </>
-              );
-            })()}
+            {/* Interactive contribution form */}
+            <div style={{
+              background: 'var(--bg-card, #0E131A)',
+              border: '1px solid rgba(79, 195, 247, 0.2)',
+              borderRadius: '20px',
+              padding: '24px',
+            }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--ink)', margin: '0 0 12px' }}>
+                Contribute to the Debate
+              </h3>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label className="label" style={{ display: 'block', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: 'var(--muted)' }}>
-                Share Percentage to {tradeType === 'buy' ? 'Buy' : 'Sell'}
-              </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input 
-                  type="number" 
-                  min="0.1" 
-                  max="100" 
-                  step="0.1" 
-                  value={tradePercentage}
-                  onChange={e => setTradePercentage(e.target.value)}
+              {/* Guiding Prompt Chips */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                {[
+                  'What evidence supports this?',
+                  'What is the strongest counterargument?',
+                  'What would change your mind?',
+                  'Which assumption has not been tested?',
+                ].map((prompt, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setNewArgContent(prompt + ' ')}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '8px',
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      color: 'var(--muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    &ldquo;{prompt}&rdquo;
+                  </button>
+                ))}
+              </div>
+
+              {/* Stance Selector */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <button
+                  onClick={() => setNewArgStance('SUPPORTING')}
                   style={{
-                    flex: 1,
-                    background: 'var(--paper-2)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '10px 14px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '15px',
-                    color: 'var(--ink)',
-                    minHeight: '44px'
+                    background: newArgStance === 'SUPPORTING' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                    border: `1px solid ${newArgStance === 'SUPPORTING' ? '#10B981' : 'var(--border)'}`,
+                    color: newArgStance === 'SUPPORTING' ? '#10B981' : 'var(--muted)',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
                   }}
-                />
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink)' }}>%</span>
+                >
+                  Supporting Argument
+                </button>
+                <button
+                  onClick={() => setNewArgStance('CHALLENGING')}
+                  style={{
+                    background: newArgStance === 'CHALLENGING' ? 'rgba(244, 63, 94, 0.15)' : 'transparent',
+                    border: `1px solid ${newArgStance === 'CHALLENGING' ? '#F43F5E' : 'var(--border)'}`,
+                    color: newArgStance === 'CHALLENGING' ? '#F43F5E' : 'var(--muted)',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Counter-Argument / Challenge
+                </button>
+                <button
+                  onClick={() => setNewArgStance('QUESTION')}
+                  style={{
+                    background: newArgStance === 'QUESTION' ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                    border: `1px solid ${newArgStance === 'QUESTION' ? '#F59E0B' : 'var(--border)'}`,
+                    color: newArgStance === 'QUESTION' ? '#F59E0B' : 'var(--muted)',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Untested Assumption
+                </button>
+              </div>
+
+              <textarea
+                value={newArgContent}
+                onChange={(e) => setNewArgContent(e.target.value)}
+                placeholder="Formulate your empirical argument, cite relevant literature, or highlight logical gaps..."
+                rows={3}
+                style={{
+                  width: '100%',
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  color: 'var(--ink)',
+                  fontSize: '14px',
+                  lineHeight: 1.5,
+                  outline: 'none',
+                  resize: 'vertical',
+                }}
+              />
+
+              {argMessage && (
+                <div style={{ fontSize: '12px', color: 'var(--cyan)', marginTop: '8px' }}>
+                  {argMessage}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+                <button
+                  onClick={handleContributeArgument}
+                  disabled={argSubmitting}
+                  className="btn-primary"
+                  style={{ minHeight: '36px', padding: '0 20px', fontSize: '13px' }}
+                >
+                  {argSubmitting ? 'Posting...' : 'Submit Argument →'}
+                </button>
               </div>
             </div>
 
-            {(() => {
-              const tokenTicker = data?.mindAsset?.tokenTicker || data?.idea?.tokenTicker || (String(agent?.id).toUpperCase() === 'MIND-590A' ? 'ACC' : 'MIND');
-              const parsedPct = parseFloat(tradePercentage) || 0;
-              const repScore = Math.min(100, Math.max(10, Math.round(
-                (agent!.credibility * 0.4) + 
-                ((agent!.predictionAccuracy || 0.7) * 40) + 
-                ((followers || 0) / 20) + 
-                (agent!.confidence * 0.1)
-              )));
-              const sharePrice = (0.10 + (repScore / 250)) / 300;
-              const sharesQty = parsedPct * 1000;
-              const gross = sharesQty * sharePrice;
-              const feeAmount = gross * 0.02;
-              const netAmount = gross - feeAmount;
+            {/* List of Arguments with Polymarket-Style Prediction Stakes */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#F1F5F9', margin: 0 }}>
+                  Dialectical Field & Live Argument Markets
+                </h3>
+                <span style={{ fontSize: '12px', color: '#64748B' }}>
+                  Back points with USDC to earn prediction yield
+                </span>
+              </div>
 
-              return (
-                <div style={{
-                  background: 'var(--paper-2)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '14px',
-                  marginBottom: '24px',
-                  fontSize: '12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--muted)' }}>Quantity:</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{sharesQty.toLocaleString()} {tokenTicker}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--muted)' }}>Share Price:</span>
-                    <span style={{ fontFamily: 'var(--font-mono)' }}>${sharePrice.toFixed(5)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--muted)' }}>Gross Value:</span>
-                    <span style={{ fontFamily: 'var(--font-mono)' }}>{gross.toFixed(6)} USDC</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--muted)' }}>Protocol Fee (2%):</span>
-                    <span style={{ fontFamily: 'var(--font-mono)' }}>{feeAmount.toFixed(6)} USDC</span>
-                  </div>
-                  <hr style={{ border: '0', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Net {tradeType === 'buy' ? 'Cost' : 'Payout'}:</span>
-                    <strong style={{ fontFamily: 'var(--font-mono)', color: tradeType === 'buy' ? 'var(--violet)' : 'var(--lime)', fontSize: '14px' }}>
-                      {netAmount.toFixed(6)} USDC
-                    </strong>
-                  </div>
+              {argumentsList.length === 0 ? (
+                <div style={{ padding: '36px', textAlign: 'center', color: '#64748B', background: 'rgba(10,14,22,0.5)', borderRadius: '16px' }}>
+                  No debate arguments formulated yet. Be the first to challenge or back this thesis!
                 </div>
-              );
-            })()}
+              ) : (
+                argumentsList.map((arg, idx) => {
+                  const isChallenge = arg.stance === 'CHALLENGING' || idx % 2 === 1;
+                  const summary = marketSummaries[arg.id] || {
+                    supportOdds: isChallenge ? 38 : 65,
+                    challengeOdds: isChallenge ? 62 : 35,
+                    supportMultiplier: isChallenge ? 2.63 : 1.54,
+                    challengeMultiplier: isChallenge ? 1.61 : 2.86,
+                    totalPool: 120 + (idx * 45),
+                    supportPool: isChallenge ? 45.6 : 78,
+                    challengePool: isChallenge ? 74.4 : 42,
+                  };
 
-            {/* Trading Actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {tradeState === 'idle' && (
-                <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleExecuteTrade}>
-                  Execute {tradeType === 'buy' ? 'Purchase' : 'Sale'}
-                </button>
-              )}
-              {tradeState === 'executing' && (
-                <button className="btn btn-primary" style={{ width: '100%', opacity: 0.7 }} disabled>
-                  {tradeType === 'buy' ? 'Approve USDC in wallet...' : 'Processing payout transaction...'}
-                </button>
-              )}
-              {tradeState === 'verifying' && (
-                <button className="btn btn-primary" style={{ width: '100%', opacity: 0.7 }} disabled>
-                  Verifying transaction on-chain...
-                </button>
-              )}
-              {tradeState === 'success' && (
-                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ color: 'var(--lime)', fontSize: '14px', fontWeight: 600 }}>
-                    ✓ Trade Executed Successfully!
-                  </div>
-                  {tradeTxHash && (
-                    <a 
-                      href={`https://sepolia.etherscan.io/tx/${tradeTxHash}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      style={{ fontSize: '11px', color: 'var(--violet)', textDecoration: 'underline', fontFamily: 'var(--font-mono)' }}
+                  return (
+                    <div
+                      key={arg.id}
+                      style={{
+                        background: 'rgba(14, 19, 26, 0.85)',
+                        backdropFilter: 'blur(12px)',
+                        border: `1px solid ${isChallenge ? 'rgba(244, 63, 94, 0.25)' : 'rgba(16, 185, 129, 0.25)'}`,
+                        borderRadius: '20px',
+                        padding: '22px',
+                        boxShadow: '0 10px 30px -10px rgba(0,0,0,0.5)',
+                      }}
                     >
-                      View Tx: {tradeTxHash.slice(0, 10)}...{tradeTxHash.slice(-8)}
-                    </a>
-                  )}
-                </div>
+                      {/* Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            padding: '3px 9px',
+                            borderRadius: '6px',
+                            background: isChallenge ? 'rgba(244, 63, 94, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                            color: isChallenge ? '#F43F5E' : '#10B981',
+                            border: `1px solid ${isChallenge ? 'rgba(244, 63, 94, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+                          }}>
+                            {isChallenge ? '⚔️ Counter-Challenge' : '🛡️ Supporting Thesis'}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#64748B', fontFamily: 'var(--mono)' }}>
+                            Strength: {Math.round((arg.strength || 0.8) * 100)}%
+                          </span>
+                        </div>
+
+                        {/* Author Link to Profile */}
+                        {arg.authorWallet ? (
+                          <Link
+                            href={`/profile/${arg.authorWallet}`}
+                            style={{
+                              fontSize: '12px',
+                              color: '#38BDF8',
+                              fontFamily: 'var(--mono)',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              background: 'rgba(56, 189, 248, 0.08)',
+                              padding: '2px 8px',
+                              borderRadius: '100px',
+                              border: '1px solid rgba(56, 189, 248, 0.2)',
+                            }}
+                          >
+                            <span>👤 {arg.authorWallet.slice(0, 6)}...{arg.authorWallet.slice(-4)}</span>
+                          </Link>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#64748B', fontFamily: 'var(--mono)' }}>
+                            🤖 Autonomous Synthesis
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <p style={{ fontSize: '15px', color: '#F1F5F9', lineHeight: 1.6, margin: '0 0 18px 0' }}>
+                        {arg.content}
+                      </p>
+
+                      {/* Polymarket-style Staking Market Bar */}
+                      <div style={{
+                        background: 'rgba(5, 7, 10, 0.8)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: '14px',
+                        padding: '16px',
+                      }}>
+                        {/* Odds header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontSize: '13px' }}>
+                          <span style={{ color: '#10B981', fontWeight: 800 }}>
+                            SUPPORT {summary.supportOdds}% <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 500, fontSize: '11px' }}>({summary.supportMultiplier}x)</span>
+                          </span>
+                          <span style={{ color: '#64748B', fontSize: '11px', fontFamily: 'var(--mono)' }}>
+                            ${summary.totalPool?.toFixed(0) || 100} USDC Market Pool
+                          </span>
+                          <span style={{ color: '#F43F5E', fontWeight: 800 }}>
+                            <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 500, fontSize: '11px' }}>({summary.challengeMultiplier}x)</span> CHALLENGE {summary.challengeOdds}%
+                          </span>
+                        </div>
+
+                        {/* Dual Odds Bar */}
+                        <div style={{
+                          height: '8px',
+                          width: '100%',
+                          background: 'rgba(255,255,255,0.06)',
+                          borderRadius: '4px',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          marginBottom: '14px',
+                        }}>
+                          <div style={{
+                            width: `${summary.supportOdds}%`,
+                            background: 'linear-gradient(90deg, #10B981, #059669)',
+                            transition: 'width 0.4s ease',
+                          }} />
+                          <div style={{
+                            width: `${summary.challengeOdds}%`,
+                            background: 'linear-gradient(90deg, #E11D48, #F43F5E)',
+                            transition: 'width 0.4s ease',
+                          }} />
+                        </div>
+
+                        {/* Staking Action Buttons */}
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <button
+                            onClick={() => setActiveStakeModal({ argumentId: arg.id, side: 'SUPPORT', argumentContent: arg.content })}
+                            style={{
+                              flex: 1,
+                              background: 'rgba(16, 185, 129, 0.12)',
+                              border: '1px solid rgba(16, 185, 129, 0.4)',
+                              color: '#34D399',
+                              fontWeight: 700,
+                              fontSize: '12px',
+                              padding: '9px 12px',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span>▲ Back SUPPORT</span>
+                            <span style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--mono)', fontSize: '11px' }}>{summary.supportMultiplier}x</span>
+                          </button>
+
+                          <button
+                            onClick={() => setActiveStakeModal({ argumentId: arg.id, side: 'CHALLENGE', argumentContent: arg.content })}
+                            style={{
+                              flex: 1,
+                              background: 'rgba(244, 63, 94, 0.12)',
+                              border: '1px solid rgba(244, 63, 94, 0.4)',
+                              color: '#FB7185',
+                              fontWeight: 700,
+                              fontSize: '12px',
+                              padding: '9px 12px',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span>▼ Back CHALLENGE</span>
+                            <span style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--mono)', fontSize: '11px' }}>{summary.challengeMultiplier}x</span>
+                          </button>
+                        </div>
+
+                        {/* If user already has stake */}
+                        {summary.userStake && (
+                          <div style={{
+                            marginTop: '10px',
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            background: 'rgba(79, 195, 247, 0.08)',
+                            border: '1px solid rgba(79, 195, 247, 0.2)',
+                            fontSize: '11px',
+                            color: '#38BDF8',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                          }}>
+                            <span>Your Position: ${summary.userStake.amount.toFixed(2)} on {summary.userStake.side}</span>
+                            <span>Potential Return: ${(summary.userStake.amount * (summary.userStake.side === 'SUPPORT' ? summary.supportMultiplier : summary.challengeMultiplier)).toFixed(2)} USDC</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
-              {tradeState === 'error' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div className="error-state" style={{ marginTop: '0' }}>
-                    {tradeError}
+            </div>
+          </div>
+        )}
+
+        {/* ─── TAB 4: PREDICTIONS ─── */}
+        {activeTab === 'predictions' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+            {/* Lock New Prediction */}
+            <div style={{
+              background: 'var(--bg-card, #0E131A)',
+              border: '1px solid var(--border)',
+              borderRadius: '20px',
+              padding: '24px',
+            }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--ink)', margin: '0 0 12px' }}>
+                Anchor a Testable Prediction
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <input
+                  type="text"
+                  placeholder="e.g. Metric X exceeds target Y before date Z..."
+                  value={predClaim}
+                  onChange={(e) => setPredClaim(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    color: 'var(--ink)',
+                    fontSize: '14px',
+                  }}
+                />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--muted)', marginBottom: '4px' }}>Resolution Deadline</label>
+                    <input
+                      type="date"
+                      value={predDeadline}
+                      onChange={(e) => setPredDeadline(e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                        color: 'var(--ink)',
+                        fontSize: '13px',
+                      }}
+                    />
                   </div>
-                  <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleExecuteTrade}>
-                    Try Again
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--muted)', marginBottom: '4px' }}>Initial Confidence: {predConfidence}%</label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={99}
+                      value={predConfidence}
+                      onChange={(e) => setPredConfidence(Number(e.target.value))}
+                      style={{ width: '100%', marginTop: '8px' }}
+                    />
+                  </div>
+                </div>
+
+                {predMessage && (
+                  <div style={{ fontSize: '12px', color: 'var(--cyan)' }}>{predMessage}</div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                  <button
+                    onClick={handleCreatePrediction}
+                    disabled={predSubmitting}
+                    className="btn-primary"
+                    style={{ minHeight: '36px', padding: '0 20px', fontSize: '13px' }}
+                  >
+                    {predSubmitting ? 'Anchoring...' : 'Anchor Prediction'}
                   </button>
                 </div>
+              </div>
+            </div>
+
+            {/* List of Predictions */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {predictionsList.length === 0 ? (
+                <div style={{ background: 'var(--bg-card, #0E131A)', border: '1px solid var(--border)', borderRadius: '16px', padding: '40px', textAlign: 'center' }}>
+                  <p style={{ color: 'var(--muted)', margin: 0 }}>No testable predictions anchored yet.</p>
+                </div>
+              ) : (
+                predictionsList.map((p) => (
+                  <div
+                    key={p.id}
+                    style={{
+                      background: 'var(--bg-card, #0E131A)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '16px',
+                      padding: '20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(79, 195, 247, 0.12)',
+                        color: 'var(--cyan)',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        fontFamily: 'var(--mono)',
+                      }}>
+                        {p.status || 'OPEN'}
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--muted)', fontFamily: 'var(--mono)' }}>
+                        Deadline: {p.targetDate || '2026-12-31'}
+                      </span>
+                    </div>
+                    <h4 style={{ fontSize: '15px', color: 'var(--ink)', fontWeight: 600, margin: 0, lineHeight: 1.5 }}>
+                      "{p.claim}"
+                    </h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--muted)', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '10px' }}>
+                      <span>Initial Confidence: <strong style={{ color: 'var(--ink)' }}>{p.confidenceAtCreation || 75}%</strong></span>
+                      <span>Resolution: Empirical Oracle</span>
+                    </div>
+                  </div>
+                ))
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── TAB 5: HISTORY ─── */}
+        {activeTab === 'history' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', fontWeight: 600 }}>
+              Auditable Chronological Log
+            </span>
+            {eventsList.length === 0 ? (
+              <div style={{ background: 'var(--bg-card, #0E131A)', border: '1px solid var(--border)', borderRadius: '16px', padding: '40px', textAlign: 'center' }}>
+                <p style={{ color: 'var(--muted)', margin: 0 }}>Initial position created. No subsequent recalibrations yet.</p>
+              </div>
+            ) : (
+              eventsList.map((ev: AgentEvent) => (
+                <div
+                  key={ev.id}
+                  style={{
+                    background: 'var(--bg-card, #0E131A)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '14px',
+                    padding: '18px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--cyan)', fontWeight: 600 }}>
+                      {ev.eventType}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', fontFamily: 'var(--mono)' }}>
+                      {new Date(ev.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '13px', color: 'var(--ink)', margin: 0, lineHeight: 1.5 }}>
+                    {ev.content}
+                  </p>
+                  {(ev.confidenceBefore !== null || ev.confidenceAfter !== null) && (
+                    <div style={{ fontSize: '11px', color: 'var(--muted)', fontFamily: 'var(--mono)' }}>
+                      Shift: {ev.confidenceBefore ?? 50}% → {ev.confidenceAfter ?? 50}%
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ─── REPOSITIONED ECONOMICS & COMPUTE DRAWER ─── */}
+        <section style={{
+          marginTop: '60px',
+          borderTop: '1px solid var(--border)',
+          paddingTop: '24px',
+        }}>
+          <button
+            onClick={() => setShowEconomicsDrawer(!showEconomicsDrawer)}
+            style={{
+              width: '100%',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              padding: '16px 20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              color: 'var(--ink)',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <span>⚙️ Technical Economics, Compute Budget & Token Details</span>
+            <span>{showEconomicsDrawer ? '▲ Hide' : '▼ Show'}</span>
+          </button>
+
+          {showEconomicsDrawer && (
+            <div style={{
+              background: 'var(--bg-card, #0E131A)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '24px',
+              marginTop: '12px',
+            }}>
+              {agent && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', textAlign: 'center', marginBottom: '20px' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Compute Budget</div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: '15px', color: 'var(--ink)', fontWeight: 600 }}>
+                      {agent.computeBudget.toFixed(2)} USDC
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Compute Spent</div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: '15px', color: '#F43F5E', fontWeight: 600 }}>
+                      {agent.computeSpent.toFixed(4)} USDC
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Remaining</div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: '15px', color: 'var(--cyan)', fontWeight: 600 }}>
+                      {agent.computeRemaining.toFixed(4)} USDC
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div style={{
+                background: 'rgba(245, 158, 11, 0.05)',
+                border: '1px solid rgba(245, 158, 11, 0.2)',
+                borderRadius: '10px',
+                padding: '12px 16px',
+                fontSize: '12px',
+                color: 'var(--muted)',
+                lineHeight: 1.5,
+              }}>
+                <strong style={{ color: '#F59E0B' }}>Market & Risk Disclosure:</strong> An optional token or bonding curve asset represents participation in attention and compute allocation, not proof that the underlying thesis is empirically true. Market prices can fluctuate wildly and do not constitute scientific consensus.
+              </div>
+            </div>
+          )}
+        </section>
+      </main>
+
+      {/* Flag Source Modal */}
+      {flagModalEvidence && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '16px',
+        }}>
+          <div style={{
+            background: 'var(--bg-surface, #0B0F14)',
+            border: '1px solid var(--border)',
+            borderRadius: '20px',
+            padding: '28px',
+            maxWidth: '480px',
+            width: '100%',
+          }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--ink)', margin: '0 0 12px' }}>
+              Flag Evidence Source
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '0 0 16px', lineHeight: 1.5 }}>
+              Source: <strong>{flagModalEvidence.sourceName || flagModalEvidence.source}</strong>
+            </p>
+
+            <label style={{ display: 'block', fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Reason</label>
+            <select
+              value={flagReason}
+              onChange={(e) => setFlagReason(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'var(--bg-card, #0E131A)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                padding: '10px',
+                color: 'var(--ink)',
+                fontSize: '13px',
+                marginBottom: '16px',
+              }}
+            >
+              <option value="Misrepresented Citation">Misrepresented Citation</option>
+              <option value="Broken Link">Broken / Dead Link</option>
+              <option value="Irrelevant Source">Irrelevant to Thesis</option>
+              <option value="Factual Inaccuracy">Factual Inaccuracy</option>
+            </select>
+
+            <label style={{ display: 'block', fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Notes (Optional)</label>
+            <textarea
+              value={flagNotes}
+              onChange={(e) => setFlagNotes(e.target.value)}
+              placeholder="Provide context on why this source is problematic..."
+              rows={3}
+              style={{
+                width: '100%',
+                background: 'var(--bg-card, #0E131A)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                padding: '10px',
+                color: 'var(--ink)',
+                fontSize: '13px',
+                marginBottom: '16px',
+              }}
+            />
+
+            {flagSuccess && (
+              <div style={{ color: '#10B981', fontSize: '12px', marginBottom: '12px' }}>
+                Flag submitted. Thank you for maintaining evidence integrity.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                onClick={() => setFlagModalEvidence(null)}
+                className="btn-secondary"
+                style={{ minHeight: '36px', padding: '0 16px', fontSize: '12px' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleFlagSubmit}
+                disabled={flagSubmitting}
+                className="btn-primary"
+                style={{ minHeight: '36px', padding: '0 20px', fontSize: '12px' }}
+              >
+                {flagSubmitting ? 'Submitting...' : 'Submit Flag'}
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Polymarket-Style Argument Staking Modal */}
+      {activeStakeModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '16px',
+        }}>
+          <div style={{
+            background: '#0B0F17',
+            border: `1px solid ${activeStakeModal.side === 'SUPPORT' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(244, 63, 94, 0.4)'}`,
+            borderRadius: '24px',
+            padding: '28px',
+            maxWidth: '520px',
+            width: '100%',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.8)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '20px' }}>🎯</span>
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#F8FAFC', margin: 0 }}>
+                    Back Argument on Polymarket
+                  </h3>
+                  <div style={{ fontSize: '11px', color: '#38BDF8', fontFamily: 'var(--mono)' }}>
+                    ⚡ Testnet Protocol: Base Sepolia • Monad • Robinhood
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => { setActiveStakeModal(null); setStakeMessage(null); setLastStakeExplorerUrl(null); }}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Testnet Network Selector */}
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px' }}>
+              Select Testnet Network
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
+              {TESTNET_CHAINS.map(chain => {
+                const isSelected = selectedStakeChainId === chain.id;
+                const isWalletOnChain = chainId === String(chain.id);
+                return (
+                  <button
+                    key={chain.id}
+                    type="button"
+                    onClick={() => setSelectedStakeChainId(chain.id)}
+                    style={{
+                      background: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.03)',
+                      border: isSelected ? '1px solid #38BDF8' : '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '10px',
+                      padding: '10px 6px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ fontSize: '15px', marginBottom: '2px' }}>{chain.icon}</div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: isSelected ? '#38BDF8' : '#F1F5F9' }}>
+                      {chain.name}
+                    </div>
+                    <div style={{ fontSize: '9px', color: isWalletOnChain ? '#10B981' : '#64748B', marginTop: '2px', fontFamily: 'var(--mono)' }}>
+                      {isWalletOnChain ? '● Active' : `ID: ${chain.id}`}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Network switch prompt if needed */}
+            {isConnected && chainId !== String(selectedStakeChainId) && (
+              <div style={{
+                fontSize: '11px',
+                color: '#F59E0B',
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                borderRadius: '8px',
+                padding: '7px 10px',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <span>⚠️ Wallet must switch to {TESTNET_CHAINS.find(c => c.id === selectedStakeChainId)?.name}</span>
+                <button
+                  type="button"
+                  onClick={() => switchChain(selectedStakeChainId)}
+                  style={{
+                    background: '#F59E0B',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Switch Now
+                </button>
+              </div>
+            )}
+
+            {/* Side Indicator */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 12px',
+              borderRadius: '100px',
+              fontSize: '12px',
+              fontWeight: 800,
+              marginBottom: '16px',
+              background: activeStakeModal.side === 'SUPPORT' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+              color: activeStakeModal.side === 'SUPPORT' ? '#34D399' : '#FB7185',
+              border: `1px solid ${activeStakeModal.side === 'SUPPORT' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+            }}>
+              {activeStakeModal.side === 'SUPPORT' ? '▲ TAKING POSITION: SUPPORT THESIS' : '▼ TAKING POSITION: CHALLENGE THESIS'}
+            </div>
+
+            {/* Target Argument Excerpt */}
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '12px',
+              padding: '14px',
+              marginBottom: '18px',
+              fontSize: '13px',
+              color: '#CBD5E1',
+              lineHeight: 1.5,
+              fontStyle: 'italic',
+            }}>
+              &ldquo;{activeStakeModal.argumentContent.length > 160 ? `${activeStakeModal.argumentContent.slice(0, 160)}...` : activeStakeModal.argumentContent}&rdquo;
+            </div>
+
+            {/* Stake Amount Selector */}
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px' }}>
+              Stake Amount (Testnet USDC)
+            </label>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              {['1', '5', '10', '25', '50'].map(val => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setStakeAmount(val)}
+                  style={{
+                    flex: 1,
+                    background: stakeAmount === val ? 'rgba(79, 195, 247, 0.2)' : 'rgba(255,255,255,0.04)',
+                    border: stakeAmount === val ? '1px solid #4FC3F7' : '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    padding: '8px 0',
+                    color: stakeAmount === val ? '#38BDF8' : '#CBD5E1',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ${val}
+                </button>
+              ))}
+            </div>
+
+            <input
+              type="number"
+              min="0.5"
+              step="0.5"
+              value={stakeAmount}
+              onChange={(e) => setStakeAmount(e.target.value)}
+              placeholder="Or custom USDC amount..."
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                color: '#F8FAFC',
+                fontSize: '14px',
+                fontFamily: 'var(--mono)',
+                marginBottom: '16px',
+                outline: 'none',
+              }}
+            />
+
+            {/* Projected Return */}
+            {(() => {
+              const num = parseFloat(stakeAmount) || 0;
+              const summary = marketSummaries[activeStakeModal.argumentId] || {
+                supportMultiplier: 1.54,
+                challengeMultiplier: 2.86,
+              };
+              const mult = activeStakeModal.side === 'SUPPORT' ? summary.supportMultiplier : summary.challengeMultiplier;
+              const potential = (num * mult).toFixed(2);
+              return (
+                <div style={{
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  marginBottom: '18px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}>
+                  <span style={{ fontSize: '12px', color: '#94A3B8' }}>Implied Testnet Payout ({mult}x):</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: '15px', fontWeight: 800, color: '#34D399' }}>
+                    ${potential} USDC
+                  </span>
+                </div>
+              );
+            })()}
+
+            {stakeMessage && (
+              <div style={{
+                fontSize: '12px',
+                color: stakeMessage.startsWith('✓') ? '#10B981' : '#F87171',
+                marginBottom: '16px',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                background: stakeMessage.startsWith('✓') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+              }}>
+                <div>{stakeMessage}</div>
+                {lastStakeExplorerUrl && (
+                  <a
+                    href={lastStakeExplorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#38BDF8',
+                      textDecoration: 'underline',
+                      fontWeight: 700,
+                      fontFamily: 'var(--mono)',
+                      fontSize: '11px',
+                    }}
+                  >
+                    View TX on {TESTNET_CHAINS.find(c => c.id === selectedStakeChainId)?.name} Explorer ↗
+                  </a>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setActiveStakeModal(null); setStakeMessage(null); setLastStakeExplorerUrl(null); }}
+                  className="btn-secondary"
+                  style={{ padding: '8px 18px', fontSize: '13px', borderRadius: '100px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePlaceStake(false)}
+                  disabled={stakeSubmitting}
+                  className="btn-primary"
+                  style={{
+                    background: activeStakeModal.side === 'SUPPORT' ? '#10B981' : '#F43F5E',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '9px 24px',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    borderRadius: '100px',
+                    boxShadow: activeStakeModal.side === 'SUPPORT' ? '0 0 16px rgba(16, 185, 129, 0.4)' : '0 0 16px rgba(244, 63, 94, 0.4)',
+                    cursor: stakeSubmitting ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {stakeSubmitting ? 'Confirming...' : `Confirm $${stakeAmount} on ${TESTNET_CHAINS.find(c => c.id === selectedStakeChainId)?.name}`}
+                </button>
+              </div>
+
+              {/* Instant Faucet Fallback button */}
+              <button
+                type="button"
+                onClick={() => handlePlaceStake(true)}
+                disabled={stakeSubmitting}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748B',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  textAlign: 'right',
+                  padding: '4px',
+                }}
+              >
+                No testnet gas? <span style={{ color: '#38BDF8', textDecoration: 'underline' }}>Execute via Instant Testnet Faucet (Zero-Gas)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Agent Compute Research Sponsorship Modal */}
+      {isSponsorModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '16px',
+        }}>
+          <div style={{
+            background: '#0B0F17',
+            border: '1px solid rgba(79, 195, 247, 0.35)',
+            borderRadius: '24px',
+            padding: '28px',
+            maxWidth: '520px',
+            width: '100%',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.8)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '20px' }}>⚡</span>
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#F8FAFC', margin: 0 }}>
+                    Sponsor Agent Research Compute
+                  </h3>
+                  <div style={{ fontSize: '11px', color: '#38BDF8', fontFamily: 'var(--mono)' }}>
+                    ⚡ Testnet Protocol: Base Sepolia • Monad • Robinhood
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => { setIsSponsorModalOpen(false); setSponsorSuccess(null); setLastSponsorExplorerUrl(null); }}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '13px', color: '#94A3B8', lineHeight: 1.5, margin: '0 0 16px 0' }}>
+              Grant testnet compute budget directly to <strong>{agentId}</strong> across supported testnets. Your sponsorship fuels autonomous search through academic archives, adversarial counter-argument synthesis, and real-time empirical verification.
+            </p>
+
+            {/* Testnet Network Selector */}
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px' }}>
+              Select Testnet Network
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
+              {TESTNET_CHAINS.map(chain => {
+                const isSelected = selectedSponsorChainId === chain.id;
+                const isWalletOnChain = chainId === String(chain.id);
+                return (
+                  <button
+                    key={chain.id}
+                    type="button"
+                    onClick={() => setSelectedSponsorChainId(chain.id)}
+                    style={{
+                      background: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.03)',
+                      border: isSelected ? '1px solid #38BDF8' : '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '10px',
+                      padding: '10px 6px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ fontSize: '15px', marginBottom: '2px' }}>{chain.icon}</div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: isSelected ? '#38BDF8' : '#F1F5F9' }}>
+                      {chain.name}
+                    </div>
+                    <div style={{ fontSize: '9px', color: isWalletOnChain ? '#10B981' : '#64748B', marginTop: '2px', fontFamily: 'var(--mono)' }}>
+                      {isWalletOnChain ? '● Active' : `ID: ${chain.id}`}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Network switch prompt if needed */}
+            {isConnected && chainId !== String(selectedSponsorChainId) && (
+              <div style={{
+                fontSize: '11px',
+                color: '#F59E0B',
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                borderRadius: '8px',
+                padding: '7px 10px',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <span>⚠️ Wallet must switch to {TESTNET_CHAINS.find(c => c.id === selectedSponsorChainId)?.name}</span>
+                <button
+                  type="button"
+                  onClick={() => switchChain(selectedSponsorChainId)}
+                  style={{
+                    background: '#F59E0B',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Switch Now
+                </button>
+              </div>
+            )}
+
+            {/* Grant Amount Presets */}
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px' }}>
+              Compute Grant Tier (Testnet USDC)
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
+              {[
+                { amount: '1', label: 'Quick Citation Scan' },
+                { amount: '5', label: 'Preprint Corpus Audit' },
+                { amount: '20', label: 'Adversarial Debate Round' },
+                { amount: '50', label: 'Deep Synthesis Sprint' },
+              ].map(tier => (
+                <button
+                  key={tier.amount}
+                  type="button"
+                  onClick={() => setSponsorAmount(tier.amount)}
+                  style={{
+                    background: sponsorAmount === tier.amount ? 'rgba(79, 195, 247, 0.2)' : 'rgba(255,255,255,0.04)',
+                    border: sponsorAmount === tier.amount ? '1px solid #4FC3F7' : '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: sponsorAmount === tier.amount ? '#38BDF8' : '#F1F5F9', fontFamily: 'var(--mono)' }}>
+                    ${tier.amount} USDC
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                    {tier.label}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <input
+              type="number"
+              min="0.5"
+              step="1"
+              value={sponsorAmount}
+              onChange={(e) => setSponsorAmount(e.target.value)}
+              placeholder="Or custom USDC grant amount..."
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                color: '#F8FAFC',
+                fontSize: '14px',
+                fontFamily: 'var(--mono)',
+                marginBottom: '16px',
+                outline: 'none',
+              }}
+            />
+
+            {/* Directive Message */}
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '6px' }}>
+              Research Directive / Message (Optional)
+            </label>
+            <input
+              type="text"
+              value={sponsorMessage}
+              onChange={(e) => setSponsorMessage(e.target.value)}
+              placeholder="e.g. Test against 2026 cosmological data..."
+              maxLength={200}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                color: '#F8FAFC',
+                fontSize: '13px',
+                marginBottom: '20px',
+                outline: 'none',
+              }}
+            />
+
+            {sponsorSuccess && (
+              <div style={{
+                fontSize: '12px',
+                color: sponsorSuccess.startsWith('✓') ? '#10B981' : '#F87171',
+                marginBottom: '16px',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                background: sponsorSuccess.startsWith('✓') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+              }}>
+                <div>{sponsorSuccess}</div>
+                {lastSponsorExplorerUrl && (
+                  <a
+                    href={lastSponsorExplorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#38BDF8',
+                      textDecoration: 'underline',
+                      fontWeight: 700,
+                      fontFamily: 'var(--mono)',
+                      fontSize: '11px',
+                    }}
+                  >
+                    View TX on {TESTNET_CHAINS.find(c => c.id === selectedSponsorChainId)?.name} Explorer ↗
+                  </a>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setIsSponsorModalOpen(false); setSponsorSuccess(null); setLastSponsorExplorerUrl(null); }}
+                  className="btn-secondary"
+                  style={{ padding: '8px 18px', fontSize: '13px', borderRadius: '100px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSponsorCompute(false)}
+                  disabled={sponsorSubmitting}
+                  className="btn-primary"
+                  style={{
+                    background: '#4FC3F7',
+                    color: '#05070A',
+                    border: 'none',
+                    padding: '9px 24px',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    borderRadius: '100px',
+                    boxShadow: '0 0 16px rgba(79, 195, 247, 0.4)',
+                    cursor: sponsorSubmitting ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {sponsorSubmitting ? 'Granting...' : `Grant $${sponsorAmount} on ${TESTNET_CHAINS.find(c => c.id === selectedSponsorChainId)?.name}`}
+                </button>
+              </div>
+
+              {/* Instant Faucet Fallback button */}
+              <button
+                type="button"
+                onClick={() => handleSponsorCompute(true)}
+                disabled={sponsorSubmitting}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748B',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  textAlign: 'right',
+                  padding: '4px',
+                }}
+              >
+                No testnet gas? <span style={{ color: '#38BDF8', textDecoration: 'underline' }}>Grant via Instant Testnet Faucet (Zero-Gas)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Footer />
     </>
   );
-}
-
-function getEventDotClass(eventType: string): string {
-  if (eventType.includes('CONFIDENCE')) return 'event-confidence';
-  if (eventType.includes('DEBATE')) return 'event-debate';
-  if (eventType.includes('EVIDENCE')) return 'event-evidence';
-  if (eventType === 'MIND_SLEEPING') return 'event-sleeping';
-  if (eventType === 'MIND_AWAKENED') return 'event-awakened';
-  return '';
-}
-
-function formatEventLabel(eventType: string): string {
-  const labels: Record<string, string> = {
-    MIND_CREATED: 'Mind Created',
-    INITIAL_ANALYSIS: 'Initial Analysis Complete',
-    NEW_EVIDENCE: 'New Evidence Discovered',
-    CONFIDENCE_CHANGED: 'Confidence Updated',
-    ARGUMENT_CREATED: 'New Argument',
-    COUNTER_ARGUMENT_FOUND: 'Counter-Argument Identified',
-    DEBATE_STARTED: 'Debate Started',
-    DEBATE_COMPLETED: 'Debate Completed',
-    POSITION_UPDATED: 'Position Updated',
-    FOLLOWER_MILESTONE: 'Follower Milestone',
-    CREDIBILITY_CHANGED: 'Credibility Updated',
-    EVIDENCE_INVALIDATED: 'Evidence Invalidated',
-    MIND_SLEEPING: 'Mind Entered Sleep State',
-    MIND_AWAKENED: 'Mind Awakened',
-  };
-  return labels[eventType] || eventType;
 }

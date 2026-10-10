@@ -55,6 +55,8 @@ export enum AgentEventType {
   MIND_BECAME_PROVEN = 'MIND_BECAME_PROVEN',
   MIND_BECAME_MARKET_READY = 'MIND_BECAME_MARKET_READY',
   VALUATION_UPDATED = 'VALUATION_UPDATED',
+  MIND_SPONSORED = 'MIND_SPONSORED',
+  STAKE_PLACED = 'STAKE_PLACED',
 }
 
 export enum DebateRound {
@@ -70,7 +72,12 @@ export enum DebateRound {
 export interface User {
   id: string;
   walletAddress: string;
+  username?: string | null;
+  displayName?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
   createdAt: string;
+  updatedAt?: string | null;
 }
 
 export interface Idea {
@@ -149,6 +156,8 @@ export interface Argument {
   supportingEvidenceIds: string[];
   strength: number;         // 0-1
   createdAt: string;
+  authorWallet?: string;
+  stance?: 'SUPPORTING' | 'CHALLENGING' | 'QUESTION';
 }
 
 export interface Debate {
@@ -203,6 +212,51 @@ export interface Payment {
 export interface IdeaFollow {
   userId: string;
   ideaId: string;
+  createdAt: string;
+}
+
+export interface ArgumentStake {
+  id: string;
+  argumentId: string;
+  agentId: string;
+  userId?: string | null;
+  userWallet: string;
+  username?: string | null;
+  side: 'SUPPORT' | 'CHALLENGE';
+  amount: number;
+  token: string;
+  txHash?: string | null;
+  chain?: string;
+  createdAt: string;
+}
+
+export interface ArgumentMarketSummary {
+  argumentId: string;
+  supportPool: number;
+  challengePool: number;
+  totalPool: number;
+  supportOdds: number; // e.g. 68%
+  challengeOdds: number; // e.g. 32%
+  supportMultiplier: number; // e.g. 1.47x
+  challengeMultiplier: number; // e.g. 3.12x
+  totalStakers: number;
+  userStake?: {
+    side: 'SUPPORT' | 'CHALLENGE';
+    amount: number;
+  } | null;
+}
+
+export interface MindSponsorship {
+  id: string;
+  mindId: string;
+  userId?: string | null;
+  userWallet: string;
+  username?: string | null;
+  amount: number;
+  token: string;
+  message?: string | null;
+  txHash?: string | null;
+  chain?: string;
   createdAt: string;
 }
 
@@ -285,18 +339,43 @@ export interface IdeaPublishRequest {
 // --- Feed / Ranking ---
 
 export interface IdeaWithMind extends Idea {
+  thesis?: string;
   agent: Agent | null;
   creator: { walletAddress: string };
   followerCount: number;
   argumentCount: number;
   evidenceCount: number;
   momentum: number;
+  topic?: string;
+  topicName?: string;
+  topicSlug?: string;
+  isAssessed?: boolean;
+  latestUpdate?: {
+    content: string;
+    createdAt: string;
+    eventType: string;
+  } | null;
 }
 
 export interface FeedFilters {
-  tab: 'trending' | 'recent' | 'debating' | 'top-mcap' | 'dex';
+  tab: 'for-you' | 'following' | 'trending' | 'recent' | 'debating' | 'top-mcap' | 'dex' | 'my-minds';
   page: number;
   limit: number;
+  walletAddress?: string;
+  topic?: string;
+}
+
+export interface NoosphereTopic {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+  description: string;
+  questions: string[];
+  mindsCount: number;
+  followersCount: number;
+  recentDebatesCount: number;
+  recentEvidenceCount: number;
 }
 
 // --- AI Provider Types ---
