@@ -23,7 +23,7 @@ export default function Header() {
   };
 
   return (
-    <header className="shell topbar" style={{ position: 'sticky', top: 0, zIndex: 100, background: 'var(--paper)', borderBottom: '1px solid var(--border)' }}>
+    <header className="topbar-legacy" style={{ position: 'sticky', top: 0, zIndex: 100, background: 'var(--bg)', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', width: '100%' }}>
       <Link href="/" className="brand" aria-label="MINDCAST · IDEAS, ALIVE.">
         <NoosMark size={30} glow={scrolled} />
         <div className="brand-text-wrap" style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>

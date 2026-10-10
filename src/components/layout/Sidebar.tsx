@@ -14,7 +14,6 @@ import {
   UserIcon,
   PlusIcon
 } from '../ui/Icons';
-import ThemeToggle from '../ui/ThemeToggle';
 import { useWallet } from '@/hooks/useWallet';
 
 const NAV_ITEMS = [
@@ -36,12 +35,11 @@ export default function Sidebar() {
 
   return (
     <aside className="col-l" aria-label="Sidebar">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', paddingRight: '8px' }}>
         <Link href="/" className="logo" aria-label="MINDCAST Home">
           <b>M</b>
           <span>MINDCAST</span>
         </Link>
-        <ThemeToggle />
       </div>
 
       <nav aria-label="Main Navigation">

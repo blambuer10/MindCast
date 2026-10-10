@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, use, useRef } from 'react';
 import Link from 'next/link';
-import Header from '@/components/layout/Header';
+import AppShell from '@/components/layout/AppShell';
 import { useWallet } from '@/hooks/useWallet';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -307,32 +307,26 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
 
   if (loading) {
     return (
-      <>
-        <Header />
-        <main className="page-container" style={{ maxWidth: '960px' }}>
-          <div style={{ padding: 'var(--space-12)', textAlign: 'center', color: 'var(--muted)' }}>
-            <div className="spinner" style={{ margin: '0 auto var(--space-4)' }}></div>
-            Loading cognitive profile...
-          </div>
-        </main>
-      </>
+      <AppShell title="Profile">
+        <div className="pad" style={{ textAlign: 'center', color: 'var(--mute)', padding: '64px 0' }}>
+          <div className="loading-dot" style={{ margin: '0 auto 16px' }} />
+          <div>Loading cognitive profile...</div>
+        </div>
+      </AppShell>
     );
   }
 
   if (!profile) {
     return (
-      <>
-        <Header />
-        <main className="page-container" style={{ maxWidth: '960px' }}>
-          <div className="empty-state" style={{ padding: 'var(--space-12)' }}>
-            <h3 className="empty-state-title">Profile not found</h3>
-            <p className="empty-state-text">No cognitive identity found for &quot;{address}&quot;.</p>
-            <Link href="/explore" className="btn btn-primary" style={{ marginTop: '16px', display: 'inline-block' }}>
-              Explore Living Minds
-            </Link>
-          </div>
-        </main>
-      </>
+      <AppShell title="Profile">
+        <div className="pad" style={{ textAlign: 'center', padding: '64px 16px' }}>
+          <h3 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>Profile not found</h3>
+          <p style={{ color: 'var(--mute)', margin: '0 0 20px' }}>No cognitive identity found for &quot;{address}&quot;.</p>
+          <Link href="/explore" className="pri" style={{ padding: '10px 24px', borderRadius: '9999px', textDecoration: 'none' }}>
+            Explore Living Minds
+          </Link>
+        </div>
+      </AppShell>
     );
   }
 
@@ -347,9 +341,8 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
     : profile.address;
 
   return (
-    <>
-      <Header />
-      <main className="page-container" style={{ maxWidth: '960px', paddingBottom: 'var(--space-16)' }}>
+    <AppShell title={username ? `@${username}` : 'Profile'}>
+      <div className="pad" style={{ paddingBottom: '64px' }}>
 
         {/* ─── X (Twitter) STYLE PROFILE HERO ─────────────────────────────────── */}
         <div style={{
@@ -1064,7 +1057,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
           </div>
         )}
 
-      </main>
+      </div>
 
       {/* ─── X-STYLE EDIT PROFILE MODAL ────────────────────────────────────── */}
       {isEditModalOpen && (
@@ -1321,7 +1314,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
           </div>
         </div>
       )}
-    </>
+    </AppShell>
   );
 }
 

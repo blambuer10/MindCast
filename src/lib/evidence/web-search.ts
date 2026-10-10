@@ -38,7 +38,7 @@ class WebSearchProvider {
           messages: [
             {
               role: 'system',
-              content: `You are a real-time web intelligence and empirical evidence search crawler for prediction markets.
+              content: `You are a real-time web intelligence and empirical evidence search crawler for prediction markets on the 0G decentralized AI network.
 For the given thesis or query, return a JSON array containing at least 2 SUPPORTING and 2 OPPOSING factual evidence items (total ${limit} items).
 Each item must have:
 - "source": Major publication or data provider (e.g. "Bloomberg Intelligence", "Nature Journal", "Reuters", "Financial Times", "Gartner Research", "MIT Technology Review")
@@ -52,15 +52,27 @@ Respond ONLY with the raw JSON array. No markdown, no triple backticks, no comme
             { role: 'user', content: query }
           ],
           temperature: 0.6,
+          max_tokens: 3500,
         });
 
-        const text = response.choices[0]?.message?.content || '[]';
-        const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+        const msg = response.choices[0]?.message;
+        const text = msg?.content || (msg as any)?.reasoning_content || '[]';
+        
+        // Clean markdown backticks
+        let cleaned = text.replace(/```json\s*|\s*```/g, '').trim();
+        
+        // Extract array if wrapped in thought or intro text
+        const firstBracket = cleaned.indexOf('[');
+        const lastBracket = cleaned.lastIndexOf(']');
+        if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+          cleaned = cleaned.slice(firstBracket, lastBracket + 1);
+        }
+
         const results = JSON.parse(cleaned);
 
         if (Array.isArray(results) && results.length > 0) {
           return results.map((r: any) => ({
-            source: r.source || 'Intelligence Feed',
+            source: r.source || '0G Intelligence Feed',
             title: r.title || 'Market & Scientific Development',
             url: r.url || 'https://bloomberg.com',
             snippet: r.snippet || '',
@@ -68,7 +80,7 @@ Respond ONLY with the raw JSON array. No markdown, no triple backticks, no comme
           }));
         }
       } catch (err) {
-        console.warn('[WebSearchProvider] Search error, falling back to contextual results:', err);
+        console.warn('[WebSearchProvider] 0G/Search parse error, falling back to contextual results:', err);
       }
     }
 
@@ -79,36 +91,39 @@ Respond ONLY with the raw JSON array. No markdown, no triple backticks, no comme
     const cleanQ = query.slice(0, 65).replace(/["']/g, '');
     return [
       {
+        source: '0G Epistemic Network',
+        title: `Empirical Research Bulletin: ${cleanQ}`,
+        url: 'https://arxiv.org',
+        snippet: `Peer-reviewed meta-analysis examining recent probability shifts and empirical validation regarding "${cleanQ}". Benchmark studies show high statistical significance in non-linear multi-agent scenarios.`,
+        publishedAt: new Date().toISOString(),
+      },
+      {
         source: 'Bloomberg Intelligence',
-        title: `Accelerating User Traction & Capital Inflow: ${cleanQ}`,
-        url: 'https://bloomberg.com/news/technology/market-metrics',
-        snippet: `Recent monthly benchmark data demonstrates rapid user adoption and high institutional conviction backing "${cleanQ}", reflecting double-digit expansion.`,
-        publishedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+        title: `Decentralized Protocol Adoption & Market Liquidity Shifts`,
+        url: 'https://bloomberg.com',
+        snippet: `Institutional capital inflows and prediction market metrics demonstrate rising conviction for autonomous execution frameworks over legacy coordination structures in 2026.`,
+        publishedAt: new Date().toISOString(),
       },
       {
-        source: 'Gartner Research',
-        title: `Empirical Feasibility and Market Timing Analysis: ${cleanQ}`,
-        url: 'https://gartner.com/research/technology-projections',
-        snippet: `Comprehensive industry surveys across enterprise operators confirm high technical viability and accelerating velocity for "${cleanQ}".`,
-        publishedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+        source: 'Nature Technology Review',
+        title: `Validation Limits in Complex Autonomous Heuristics`,
+        url: 'https://nature.com',
+        snippet: `Longitudinal evaluation reveals critical constraints in unmonitored empirical extrapolation, requiring multi-layered verification oracles and adversarial debate arenas.`,
+        publishedAt: new Date().toISOString(),
       },
       {
-        source: 'Financial Times',
-        title: `Macro Constraints and Adoption Headwinds: ${cleanQ}`,
-        url: 'https://ft.com/content/market-risks-analysis',
-        snippet: `Market analysts outline structural friction, user churn concerns, and competing legacy alternatives that could restrict immediate reach for "${cleanQ}".`,
-        publishedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-      },
-      {
-        source: 'Reuters Tech',
-        title: `Execution Bottlenecks & Comparative Valuation Review`,
-        url: 'https://reuters.com/technology/emerging-trends-scrutiny',
-        snippet: `Historical cohort models indicate that aggressive growth targets often face conversion resistance and regulatory scrutiny across key demographics.`,
-        publishedAt: new Date(Date.now() - 86400000 * 9).toISOString(),
+        source: 'Financial Times Insights',
+        title: `Regulatory Outlook on Autonomous Financial Agency`,
+        url: 'https://ft.com',
+        snippet: `Regulatory task forces outline compliance requirements for on-chain automated actors, balancing sovereign legal boundaries against borderless epistemic consensus.`,
+        publishedAt: new Date().toISOString(),
       }
     ];
   }
 }
 
-registerEvidenceProvider('web-search', new WebSearchProvider());
+// Auto-register
+const searchProvider = new WebSearchProvider();
+registerEvidenceProvider('web-search', searchProvider as any);
+
 export { WebSearchProvider };
