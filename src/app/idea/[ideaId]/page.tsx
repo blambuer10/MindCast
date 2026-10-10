@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback, use } from 'react';
 import Link from 'next/link';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
+import AppShell from '@/components/layout/AppShell';
 import { useWallet } from '@/hooks/useWallet';
 import { MOCK_MINDS } from '@/mocks/minds';
 import type { Idea, Agent, MindState, Prediction, Evidence, AgentEvent } from '@/lib/types';
@@ -114,10 +113,13 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
       const res = await fetch(url);
       if (res.ok) {
         const json = await res.json();
-        setData(json);
-        setFollowing(Boolean(json.isFollowing));
-        setFollowerCount(json.followerCount || 0);
-        return;
+        if (json && json.idea) {
+          setData(json);
+          setFollowing(Boolean(json.isFollowing));
+          setFollowerCount(json.followerCount || 0);
+          setLoading(false);
+          return;
+        }
       }
     } catch (err) {
       console.warn('Backend fetch failed, attempting fixture fallback:', err);
@@ -162,23 +164,29 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
           updatedAt: mockMind.createdAt,
         } as any,
         mindState: {
-          id: mockMind.id,
-          agentId: mockMind.id,
-          currentThesis: mockMind.claim,
-          synopsis: mockMind.summary,
-          confidence: mockMind.confidence ?? 50,
-          isAssessed: mockMind.confidence !== null,
-          evidenceCount: mockMind.citations,
-          argumentsCount: mockMind.arguments,
-          supportingCount: 3,
-          challengingCount: 1,
-          domain: mockMind.noosphere,
-          domainIcon: '⚡',
-          citationSample: `${mockMind.sourceTitle}: ${mockMind.sourceExcerpt}`,
-          predictionStatement: `${mockMind.name} prediction for 2027`,
-          lastUpdated: mockMind.createdAt,
-          createdAt: mockMind.createdAt,
-          epoch: String(mockMind.year),
+          agent: {} as any,
+          thesis: mockMind.claim,
+          belief: {
+            confidence: mockMind.confidence ?? 50,
+            credibility: 85,
+            assumptions: [],
+            strengths: [],
+            weaknesses: [],
+            lastUpdated: mockMind.createdAt,
+          },
+          evidence: [],
+          counterEvidence: [],
+          allEvidence: [],
+          arguments: [],
+          counterArguments: [],
+          memory: {
+            agentId: mockMind.id,
+            eventHistory: [],
+            debateHistory: [],
+            evidenceTimeline: [],
+            confidenceHistory: [],
+            positionChanges: [],
+          },
         } as any,
         predictions: [],
         followerCount: 128,
@@ -186,10 +194,12 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
       });
     }
 
+
     setLoading(false);
   }, [ideaId, address]);
 
   useEffect(() => {
+    setLoading(true);
     fetchDetail();
   }, [fetchDetail]);
 
@@ -505,29 +515,24 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
 
   if (loading) {
     return (
-      <>
-        <Header />
-        <main className="page-container" style={{ maxWidth: '960px', margin: '60px auto', padding: '0 24px' }}>
-          <div style={{ height: '24px', width: '140px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', marginBottom: '20px' }} />
-          <div style={{ height: '40px', width: '80%', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', marginBottom: '16px' }} />
-          <div style={{ height: '120px', width: '100%', background: 'rgba(255,255,255,0.04)', borderRadius: '12px' }} />
-        </main>
-        <Footer />
-      </>
+      <AppShell title="Mind Dossier" showRightRail={false}>
+        <div style={{ maxWidth: '960px', margin: '60px auto', padding: '40px 24px', textAlign: 'center' }}>
+          <div className="loading-dot" style={{ margin: '0 auto 16px' }} />
+          <div style={{ color: 'var(--mute)' }}>Loading cognitive dossier...</div>
+        </div>
+      </AppShell>
     );
   }
 
   if (!data || !data.idea) {
     return (
-      <>
-        <Header />
-        <main className="page-container" style={{ maxWidth: '600px', margin: '80px auto', textAlign: 'center', padding: '0 24px' }}>
+      <AppShell title="Mind Not Found" showRightRail={false}>
+        <div style={{ maxWidth: '600px', margin: '80px auto', textAlign: 'center', padding: '0 24px' }}>
           <h2 style={{ fontSize: '24px', color: 'var(--ink)' }}>Mind Not Found</h2>
-          <p style={{ color: 'var(--muted)', margin: '12px 0 24px' }}>The living idea you are looking for does not exist or has been removed.</p>
-          <Link href="/explore" className="btn-primary">Return to Explore</Link>
-        </main>
-        <Footer />
-      </>
+          <p style={{ color: 'var(--mute)', margin: '12px 0 24px' }}>The living idea you are looking for does not exist or has been removed.</p>
+          <Link href="/explore" className="pri" style={{ padding: '8px 20px', borderRadius: '100px', textDecoration: 'none', display: 'inline-block' }}>Return to Explore</Link>
+        </div>
+      </AppShell>
     );
   }
 
@@ -553,9 +558,8 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
   const latestEvent = eventsList.length > 0 ? eventsList[0] : null;
 
   return (
-    <>
-      <Header />
-      <main className="page-container" style={{ maxWidth: '980px', margin: '0 auto', padding: '40px 20px 80px' }}>
+    <AppShell title={agentId} showRightRail={false}>
+      <div style={{ maxWidth: '980px', margin: '0 auto', padding: '24px 20px 80px' }}>
         {/* Back Link */}
         <div style={{ marginBottom: '24px' }}>
           <Link href="/explore" style={{ fontSize: '13px', color: 'var(--cyan)', textDecoration: 'none' }}>
@@ -1541,7 +1545,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
             </div>
           )}
         </section>
-      </main>
+      </div>
 
       {/* Flag Source Modal */}
       {flagModalEvidence && (
@@ -2219,7 +2223,6 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
         </div>
       )}
 
-      <Footer />
-    </>
+    </AppShell>
   );
 }

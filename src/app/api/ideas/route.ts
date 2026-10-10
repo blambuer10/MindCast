@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const tab = (searchParams.get('tab') || 'trending') as FeedFilters['tab'];
+    const tab = (searchParams.get('tab') || 'recent') as FeedFilters['tab'];
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
     const walletAddress = searchParams.get('walletAddress') || undefined;

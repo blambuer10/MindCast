@@ -7,6 +7,64 @@ import Panel from '@/components/ui/Panel';
 import { useWallet } from '@/hooks/useWallet';
 import type { IdeaWithMind } from '@/lib/types';
 
+function MindCard({ mind }: { mind: IdeaWithMind }) {
+  const confidence = mind.agent?.confidence ?? 50;
+  const rawStatus = (mind.agent?.lifecycleStatus || (mind.agent as any)?.status || 'INCUBATING') as string;
+  const statusColor = rawStatus === 'MARKET_ACTIVE' || rawStatus === 'PROVEN' || rawStatus === 'MARKET_READY'
+    ? 'var(--proven)' 
+    : rawStatus === 'ACTIVE' || rawStatus === 'EMERGING' || rawStatus === 'DEBATING'
+    ? 'var(--debate)' 
+    : 'var(--mute)';
+
+  return (
+    <Panel style={{ marginBottom: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+        <div style={{ flex: 1, minWidth: '200px' }}>
+          <Link
+            href={`/idea/${mind.id}`}
+            style={{ fontWeight: 700, fontSize: '16px', color: 'var(--ink)', textDecoration: 'none' }}
+          >
+            {mind.tokenName || mind.content?.slice(0, 60) || 'Untitled Mind'}
+            {(mind.content?.length ?? 0) > 60 && !mind.tokenName ? '...' : ''}
+          </Link>
+          <p style={{ color: 'var(--mute)', fontSize: '13px', margin: '4px 0 0', lineHeight: 1.4 }}>
+            {mind.content?.slice(0, 120)}{(mind.content?.length ?? 0) > 120 ? '...' : ''}
+          </p>
+          <p style={{ color: 'var(--mute)', fontSize: '12px', margin: '6px 0 0' }}>
+            Created {new Date(mind.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {mind.agent?.id && <span style={{ marginLeft: '8px', fontFamily: 'monospace', color: 'var(--cyan)', fontSize: '11px' }}>{mind.agent.id}</span>}
+          </p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+          <span style={{
+            fontSize: '11px',
+            fontWeight: 700,
+            padding: '3px 10px',
+            borderRadius: '100px',
+            background: `${statusColor}18`,
+            color: statusColor,
+            border: `1px solid ${statusColor}40`,
+          }}>
+            {status}
+          </span>
+          <span style={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 700, color: confidence > 70 ? 'var(--cyan)' : confidence > 45 ? '#F59E0B' : '#F43F5E' }}>
+            {confidence}%
+          </span>
+          <span style={{ fontSize: '11px', color: 'var(--mute)' }}>confidence</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: '16px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: '12px', color: 'var(--mute)' }}>
+        <span>📚 {mind.evidenceCount ?? 0} evidence</span>
+        <span>⚔️ {mind.argumentCount ?? 0} arguments</span>
+        <span>👥 {mind.followerCount ?? 0} followers</span>
+        <Link href={`/idea/${mind.id}`} style={{ marginLeft: 'auto', color: 'var(--cyan)', textDecoration: 'none', fontWeight: 600 }}>
+          Open Dossier →
+        </Link>
+      </div>
+    </Panel>
+  );
+}
+
 function MyMindsContent() {
   const { isConnected, address, connect } = useWallet();
 
@@ -19,15 +77,15 @@ function MyMindsContent() {
     if (!address) return;
     setLoading(true);
     try {
-      // 1. Fetch created ideas
-      const createdRes = await fetch(`/api/ideas?tab=my-minds&walletAddress=${address}`);
+      const [createdRes, followedRes] = await Promise.all([
+        fetch(`/api/ideas?tab=my-minds&walletAddress=${address}&limit=50`),
+        fetch(`/api/ideas?tab=following&walletAddress=${address}&limit=50`),
+      ]);
+
       if (createdRes.ok) {
         const cData = await createdRes.json();
         setCreatedMinds(cData.ideas || []);
       }
-
-      // 2. Fetch followed ideas
-      const followedRes = await fetch(`/api/ideas?tab=following&walletAddress=${address}`);
       if (followedRes.ok) {
         const fData = await followedRes.json();
         setFollowedMinds(fData.ideas || []);
@@ -44,6 +102,8 @@ function MyMindsContent() {
       fetchUserMinds();
     }
   }, [isConnected, address, fetchUserMinds]);
+
+  const displayMinds = activeTab === 'created' ? createdMinds : followedMinds;
 
   return (
     <div className="pad">
@@ -90,43 +150,19 @@ function MyMindsContent() {
 
           {loading ? (
             <div className="empty">Loading your Minds...</div>
+          ) : displayMinds.length > 0 ? (
+            displayMinds.map((mind) => <MindCard key={mind.id} mind={mind} />)
           ) : (
-            <div>
+            <div className="empty">
               {activeTab === 'created' ? (
-                createdMinds.length > 0 ? (
-                  createdMinds.map((mind) => (
-                    <Panel key={mind.id} style={{ marginBottom: '12px' }}>
-                      <Link href={`/idea/${mind.id}`} style={{ fontWeight: 700, fontSize: '16px' }}>
-                        {mind.content}
-                      </Link>
-                      <p style={{ color: 'var(--mute)', fontSize: '13px', margin: '6px 0 0' }}>
-                        Created on {new Date(mind.createdAt).toLocaleDateString()}
-                      </p>
-                    </Panel>
-                  ))
-                ) : (
-                  <div className="empty">
-                    You haven&apos;t created any Minds yet.
-                    <div style={{ marginTop: '12px' }}>
-                      <Link href="/create" className="pri">Create a Mind</Link>
-                    </div>
+                <>
+                  You haven&apos;t created any Minds yet.
+                  <div style={{ marginTop: '12px' }}>
+                    <Link href="/create" className="pri">Create a Mind</Link>
                   </div>
-                )
-              ) : followedMinds.length > 0 ? (
-                followedMinds.map((mind) => (
-                  <Panel key={mind.id} style={{ marginBottom: '12px' }}>
-                    <Link href={`/idea/${mind.id}`} style={{ fontWeight: 700, fontSize: '16px' }}>
-                      {mind.content}
-                    </Link>
-                    <p style={{ color: 'var(--mute)', fontSize: '13px', margin: '6px 0 0' }}>
-                      Confidence: {mind.agent?.confidence ?? 'N/A'}%
-                    </p>
-                  </Panel>
-                ))
+                </>
               ) : (
-                <div className="empty">
-                  You are not following any Minds yet.
-                </div>
+                'You are not following any Minds yet. Explore the feed and follow Minds you find interesting.'
               )}
             </div>
           )}

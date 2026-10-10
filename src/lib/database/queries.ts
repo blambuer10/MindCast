@@ -34,6 +34,7 @@ function mapUserRow(row: any): User {
     displayName: (row.display_name || row.displayName || null) as string | null,
     bio: (row.bio || null) as string | null,
     avatarUrl: (row.avatar_url || row.avatarUrl || null) as string | null,
+    bannerUrl: (row.banner_url || row.bannerUrl || null) as string | null,
     createdAt: (row.created_at || row.createdAt) as string,
     updatedAt: (row.updated_at || row.updatedAt || null) as string | null,
   };
@@ -123,7 +124,7 @@ export function isUsernameAvailable(username: string, excludeWalletOrId?: string
 
 export function updateUserProfile(
   walletAddress: string,
-  profile: { username?: string; displayName?: string; bio?: string; avatarUrl?: string }
+  profile: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bannerUrl?: string }
 ): { success: boolean; user?: User; error?: string } {
   const db = getDb();
   const normalizedWallet = walletAddress.toLowerCase();
@@ -146,6 +147,7 @@ export function updateUserProfile(
   const displayName = profile.displayName !== undefined ? (profile.displayName.trim() || null) : existingUser.displayName;
   const bio = profile.bio !== undefined ? (profile.bio.trim() || null) : existingUser.bio;
   const avatarUrl = profile.avatarUrl !== undefined ? (profile.avatarUrl.trim() || null) : existingUser.avatarUrl;
+  const bannerUrl = profile.bannerUrl !== undefined ? (profile.bannerUrl.trim() || null) : existingUser.bannerUrl;
   const now = new Date().toISOString();
 
   try {
@@ -155,9 +157,10 @@ export function updateUserProfile(
           display_name = ?,
           bio = ?,
           avatar_url = ?,
+          banner_url = ?,
           updated_at = ?
       WHERE id = ?
-    `).run(newUsername, displayName, bio, avatarUrl, now, existingUser.id);
+    `).run(newUsername, displayName, bio, avatarUrl, bannerUrl, now, existingUser.id);
 
     const updated = getUserById(existingUser.id);
     return { success: true, user: updated };

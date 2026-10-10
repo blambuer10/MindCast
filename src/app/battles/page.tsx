@@ -15,8 +15,8 @@ function BattlesContent() {
   const [minds, setMinds] = useState<Mind[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [indexA, setIndexA] = useState(2); // default CON1
-  const [indexB, setIndexB] = useState(1); // default SIM1
+  const [indexA, setIndexA] = useState(0); // first mind
+  const [indexB, setIndexB] = useState(1); // second mind
   const [round, setRound] = useState(0);
   const [votesA, setVotesA] = useState(65);
   const [votesB, setVotesB] = useState(45);
@@ -32,8 +32,8 @@ function BattlesContent() {
       const mindBParam = searchParams.get('mindB');
       const fightParam = searchParams.get('fight');
 
-      let idxA = 2;
-      let idxB = 1;
+      let idxA = 0;
+      let idxB = Math.min(1, data.length - 1);
 
       if (mindAParam) {
         const foundA = data.findIndex(m => m.id === mindAParam || m.name.toLowerCase().includes(mindAParam.toLowerCase()));

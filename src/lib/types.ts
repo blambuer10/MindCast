@@ -76,6 +76,7 @@ export interface User {
   displayName?: string | null;
   bio?: string | null;
   avatarUrl?: string | null;
+  bannerUrl?: string | null;
   createdAt: string;
   updatedAt?: string | null;
 }

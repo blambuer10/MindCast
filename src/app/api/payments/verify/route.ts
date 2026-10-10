@@ -18,19 +18,20 @@ import { PaymentStatus } from '@/lib/types';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { ideaId, txHash, chain, walletAddress } = body;
+    const { ideaId, txHash, chain, chainId, walletAddress } = body;
+    const finalChain = chain || (chainId === 84532 ? 'base-sepolia' : chainId === 10143 ? 'monad-testnet' : chainId === 46631 ? 'robinhood-testnet' : 'base-sepolia');
 
     // Rate Limiting Protection
     const { isRateLimited } = await import('@/lib/security/rate-limiter');
     const ip = request.headers.get('x-forwarded-for') || 'local-ip';
-    const rateCheck = isRateLimited(`payments-verify-${ip}-${walletAddress}`, 5, 60000);
+    const rateCheck = isRateLimited(`payments-verify-${ip}-${walletAddress}`, 15, 60000);
     if (rateCheck.limited) {
       return NextResponse.json(
         { error: 'Too many payment verification requests. Please wait.' },
         { status: 429 }
       );
     }
-    if (!ideaId || !txHash || !chain || !walletAddress) {
+    if (!ideaId || !txHash || !finalChain || !walletAddress) {
       return NextResponse.json(
         { error: 'Missing required fields: ideaId, txHash, chain, walletAddress' },
         { status: 400 }
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Duplicate Check ───
-    const existingPayment = getPaymentByTxHash(chain, txHash);
+    const existingPayment = getPaymentByTxHash(finalChain, txHash);
     if (existingPayment) {
       return NextResponse.json(
         { error: 'Transaction already used. Duplicate payments are not allowed.' },
@@ -67,11 +68,11 @@ export async function POST(request: NextRequest) {
 
     // ─── Create Payment Record ───
     const recipientAddress = process.env.PAYMENT_RECIPIENT_ADDRESS || '0x0000000000000000000000000000000000000000';
-    const tokenSymbol = chain === 'robinhood' ? 'USDG' : 'USDC';
+    const tokenSymbol = finalChain === 'robinhood' ? 'USDG' : 'USDC';
     const payment = createPayment({
       userId: user.id,
       ideaId,
-      chain,
+      chain: finalChain,
       txHash,
       amount: process.env.PAYMENT_AMOUNT || '1',
       token: tokenSymbol,
@@ -138,10 +139,10 @@ export async function POST(request: NextRequest) {
       tokenTicker: idea.tokenTicker,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[API] Payment verify error:', error);
     return NextResponse.json(
-      { error: 'Payment verification failed. Please try again.' },
+      { error: `Payment verification failed: ${error?.message || error || 'Unknown error'}` },
       { status: 500 }
     );
   }

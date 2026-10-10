@@ -9,7 +9,8 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { content, stance, authorWallet, evidenceIds } = body;
+    const { content, stance, authorWallet, walletAddress, evidenceIds } = body;
+    const author = authorWallet || walletAddress;
 
     if (!content || typeof content !== 'string' || content.trim().length < 10) {
       return NextResponse.json(
@@ -21,7 +22,7 @@ export async function POST(
     // Rate limiting
     const { isRateLimited } = await import('@/lib/security/rate-limiter');
     const ip = request.headers.get('x-forwarded-for') || 'local-ip';
-    const rateCheck = isRateLimited(`arg-post-${ip}-${id}`, 10, 60000);
+    const rateCheck = isRateLimited(`arg-post-${ip}-${id}`, 15, 60000);
     if (rateCheck.limited) {
       return NextResponse.json(
         { error: 'Too many submissions. Please wait a moment.' },
@@ -39,8 +40,14 @@ export async function POST(
     let agent = getAgent(id);
     if (!agent) {
       const idea = getIdea(id);
-      if (idea && idea.agentId) {
-        agent = getAgent(idea.agentId);
+      if (idea) {
+        if (idea.agentId) {
+          agent = getAgent(idea.agentId);
+        }
+        if (!agent) {
+          const { birthMind } = await import('@/lib/ai/mind-engine');
+          agent = await birthMind(idea.id, idea.content);
+        }
       }
     }
 
@@ -56,7 +63,7 @@ export async function POST(
       content.trim(),
       Array.isArray(evidenceIds) ? evidenceIds : [],
       strength,
-      authorWallet || undefined,
+      author || undefined,
       validStance
     );
 

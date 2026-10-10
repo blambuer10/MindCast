@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateUserProfile, getUserByWallet } from '@/lib/database/queries';
+import { updateUserProfile, getUserByWallet, findOrCreateUser } from '@/lib/database/queries';
 import { ethers } from 'ethers';
 
 export const dynamic = 'force-dynamic';
@@ -7,17 +7,19 @@ export const dynamic = 'force-dynamic';
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { walletAddress, username, displayName, bio, avatarUrl } = body;
+    const { walletAddress, address, username, displayName, bio, avatarUrl, bannerUrl, coverUrl } = body;
+    const targetAddress = walletAddress || address;
 
-    if (!walletAddress || !ethers.isAddress(walletAddress)) {
+    if (!targetAddress || !ethers.isAddress(targetAddress)) {
       return NextResponse.json({ error: 'Valid wallet address is required' }, { status: 400 });
     }
 
-    const result = updateUserProfile(walletAddress, {
+    const result = updateUserProfile(targetAddress, {
       username,
       displayName,
       bio,
       avatarUrl,
+      bannerUrl: bannerUrl || coverUrl,
     });
 
     if (!result.success) {
@@ -34,18 +36,20 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
+export const PUT = PATCH;
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const walletAddress = searchParams.get('walletAddress');
+    const walletAddress = searchParams.get('walletAddress') || searchParams.get('address');
 
-    if (!walletAddress) {
-      return NextResponse.json({ error: 'walletAddress query param is required' }, { status: 400 });
+    if (!walletAddress || !ethers.isAddress(walletAddress)) {
+      return NextResponse.json({ error: 'Valid wallet address query param is required' }, { status: 400 });
     }
 
-    const user = getUserByWallet(walletAddress);
+    let user = getUserByWallet(walletAddress);
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      user = findOrCreateUser(walletAddress);
     }
 
     return NextResponse.json({ user });

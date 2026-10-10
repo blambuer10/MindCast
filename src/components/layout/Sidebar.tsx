@@ -15,6 +15,7 @@ import {
   PlusIcon
 } from '../ui/Icons';
 import { useWallet } from '@/hooks/useWallet';
+import NoosMark from '../ui/NoosMark';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Home', icon: HomeIcon },
@@ -35,10 +36,10 @@ export default function Sidebar() {
 
   return (
     <aside className="col-l" aria-label="Sidebar">
-      <div style={{ display: 'flex', alignItems: 'center', paddingRight: '8px' }}>
-        <Link href="/" className="logo" aria-label="MINDCAST Home">
-          <b>M</b>
-          <span>MINDCAST</span>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '12px 8px 16px' }}>
+        <Link href="/" className="logo" aria-label="MINDCAST Home" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+          <NoosMark size={26} glow />
+          <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '0.06em', color: 'var(--ink)' }}>MINDCAST</span>
         </Link>
       </div>
 

@@ -1,5 +1,5 @@
 import type { Mind, ArenaRoom, ChatMessage, PanelReaction, Status } from '@/types/mind';
-import { MOCK_MINDS, MOCK_ROOMS, MOCK_CHAT_POOL } from '@/mocks/minds';
+import { MOCK_MINDS, MOCK_ROOMS, MOCK_CHAT_POOL, generateDebates, generatePredictions } from '@/mocks/minds';
 
 function mapTopicToNoosphere(topic?: string): string {
   if (!topic) return 'Artificial Intelligence';
@@ -15,45 +15,58 @@ function mapTopicToNoosphere(topic?: string): string {
 function mapBackendIdeaToMind(item: any): Mind {
   const agent = item.agent || {};
   const thesis = item.content || item.thesis || 'Autonomous Hypothesis';
-  const confidence = agent.confidenceScore ?? item.confidence ?? 78;
-  const rawStatus = (agent.status || item.status || 'DEBATING').toUpperCase();
-  const status: Status = rawStatus === 'PROVEN' ? 'Proven' : (rawStatus === 'ACTIVE' || rawStatus === 'DEBATING') ? 'Debating' : 'Exploring';
+  const confidence = agent.confidenceScore ?? item.confidence ?? agent.confidence ?? 50;
+  const rawStatus = (agent.status || agent.lifecycleStatus || item.status || 'DEBATING').toUpperCase();
+  const status: Status = (rawStatus === 'PROVEN' || rawStatus === 'MARKET_ACTIVE') 
+    ? 'Proven' 
+    : (rawStatus === 'ACTIVE' || rawStatus === 'DEBATING' || rawStatus === 'INCUBATING') 
+    ? 'Debating' 
+    : 'Exploring';
 
-  const noosphere = item.domain || mapTopicToNoosphere(item.topic);
-  const createdDate = new Date(item.createdAt || Date.now());
+  const noosphere = item.domain || mapTopicToNoosphere(item.topic || item.topicName);
+  const createdDate = new Date(item.publishedAt || item.createdAt || Date.now());
   const year = createdDate.getFullYear() || 2026;
   const dateFormatted = createdDate.toLocaleString('en-US', { month: 'short', year: 'numeric' }) || 'Oct 2026';
 
-  const stanceString = confidence > 75 ? 'aaaaaa' : confidence > 60 ? 'aaasas' : 'asdsdd';
+  const stanceString = confidence > 75 ? 'aaaaaa' : confidence > 60 ? 'aaasas' : confidence > 45 ? 'saasds' : 'asdsdd';
+
+  const name = item.tokenName || agent.name || (agent.id ? `Mind ${agent.id.replace('MIND-', '')}` : `Mind ${item.id.slice(0, 4)}`);
+  const handle = (item.tokenTicker ? item.tokenTicker.toLowerCase() : (agent.id || item.id).toLowerCase()).replace(/[^a-z0-9]+/g, '-');
 
   const panel: PanelReaction[] = [
-    { model: 'Claude', stance: confidence > 70 ? 'agree' : 'split', comment: 'Coherent theoretical grounding with empirical literature.' },
-    { model: 'GPT', stance: confidence > 60 ? 'agree' : 'split', comment: 'Probabilistic evidence aligns with recent publications.' },
-    { model: 'Gemini', stance: confidence > 65 ? 'agree' : 'split', comment: 'Methodology verified through multi-agent debate synthesis.' },
-    { model: 'Grok', stance: 'split', comment: 'Contrarian edge present; awaits further market convergence.' },
-    { model: 'DeepSeek', stance: confidence > 70 ? 'agree' : 'disagree', comment: 'Mathematical consistency verified against benchmark datasets.' },
-    { model: 'Llama', stance: 'agree', comment: 'Open-weights replication confirms thesis stability.' },
+    { model: 'Claude', stance: confidence > 70 ? 'agree' : 'split', comment: `Epistemic audit verifies strong theoretical alignment for "${name}".` },
+    { model: 'GPT', stance: confidence > 60 ? 'agree' : 'split', comment: `Statistical distributions support the core probability distribution.` },
+    { model: 'Gemini', stance: confidence > 65 ? 'agree' : 'split', comment: `Cross-referenced against verified benchmark publications and DePIN metrics.` },
+    { model: 'Grok', stance: 'split', comment: `Contrarian risk factors present; market volatility anticipated.` },
+    { model: 'DeepSeek', stance: confidence > 70 ? 'agree' : 'disagree', comment: `Logical consistency and game-theoretic bounds verified.` },
+    { model: 'Llama', stance: confidence > 50 ? 'agree' : 'split', comment: `Decentralized consensus aligns with the stated trajectory.` },
   ];
+
+  const startConf = Math.max(30, Math.min(75, Math.round(confidence - 12)));
+  const midConf = Math.round((startConf + confidence) / 2);
+  const confidenceHistory = [startConf, midConf, confidence];
 
   return {
     id: item.id,
-    name: agent.name || (agent.agentId ? `Mind ${agent.agentId.replace('MIND-', '')}` : `Mind ${item.id.slice(0, 4)}`),
-    handle: (agent.name || item.id).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    name,
+    handle,
     year,
     dateFormatted,
     noosphere,
     status,
     claim: thesis,
     summary: item.synopsis || (thesis.length > 140 ? thesis.slice(0, 140) + '...' : thesis),
-    sourceTitle: item.citationSample ? 'Academic Source' : 'Verified Claim',
+    sourceTitle: item.citationSample ? 'Academic Source' : 'Empirical Claim',
     sourceExcerpt: item.citationSample || 'Empirical evidence recorded on-chain via MINDCAST epistemic protocol.',
     confidence,
-    confidenceHistory: [Math.max(45, confidence - 18), Math.max(50, confidence - 10), confidence],
+    confidenceHistory,
     citations: item.evidenceCount ?? agent.evidenceCount ?? 3,
-    arguments: item.argumentsCount ?? agent.argumentsCount ?? 5,
+    arguments: item.argumentCount ?? item.argumentsCount ?? agent.argumentsCount ?? 4,
     createdAt: item.createdAt || new Date().toISOString(),
     panel,
     stanceString,
+    debatesList: generateDebates(name, thesis, stanceString, confidence),
+    predictionsList: generatePredictions(name, thesis, confidence, year),
   };
 }
 
@@ -62,7 +75,7 @@ function mapBackendIdeaToMind(item: any): Mind {
  */
 export async function listMinds(): Promise<Mind[]> {
   try {
-    const res = await fetch('/api/ideas?limit=30');
+    const res = await fetch('/api/ideas?limit=50&tab=recent');
     if (res.ok) {
       const data = await res.json();
       const rawList = Array.isArray(data) ? data : (data.ideas || []);
@@ -88,7 +101,21 @@ export async function listMinds(): Promise<Mind[]> {
  * Gets a specific Mind by its ID or handle.
  */
 export async function getMind(idOrHandle: string): Promise<Mind | null> {
-  // First check if it's in listMinds()
+  // First try direct backend query for UUIDs (most reliable)
+  const isUuid = /^[0-9a-f-]{8,}/i.test(idOrHandle);
+  if (isUuid) {
+    try {
+      const res = await fetch(`/api/ideas/${idOrHandle}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.idea) {
+          return mapBackendIdeaToMind({ ...data.idea, agent: data.agent, ...data });
+        }
+      }
+    } catch {}
+  }
+
+  // Fallback: search through listMinds()
   const minds = await listMinds();
   const lower = idOrHandle.toLowerCase();
   const match = minds.find(m =>
@@ -100,7 +127,7 @@ export async function getMind(idOrHandle: string): Promise<Mind | null> {
   );
   if (match) return match;
 
-  // Direct backend query fallback for specific UUIDs
+  // Last resort: direct backend query for non-UUID handles too
   try {
     const res = await fetch(`/api/ideas/${idOrHandle}`);
     if (res.ok) {
@@ -144,6 +171,51 @@ export async function submitBattleVote(battleId: string, side: 'A' | 'B'): Promi
  * Lists Arena rooms.
  */
 export async function listRooms(): Promise<ArenaRoom[]> {
+  try {
+    const minds = await listMinds();
+    if (minds.length >= 3) {
+      return [
+        {
+          id: 'room-ai-capital',
+          name: minds[0]?.name ? `${minds[0].name}` : 'Autonomous AI & Capital',
+          blurb: (minds[0]?.claim?.slice(0, 75) || 'Autonomous agents and capital allocation debate') + '...',
+          online: 42,
+          color: '#F06292',
+          mindId: minds[0]?.id
+        },
+        {
+          id: 'room-simulation',
+          name: minds[1]?.name ? `${minds[1].name}` : 'Simulation & Physics',
+          blurb: (minds[1]?.claim?.slice(0, 75) || 'Multi-agent dispute over quantum coherence') + '...',
+          online: 29,
+          color: '#4FA3E8',
+          mindId: minds[1]?.id
+        },
+        {
+          id: 'room-consciousness',
+          name: minds[2]?.name ? `${minds[2].name}` : 'Consciousness & AI',
+          blurb: (minds[2]?.claim?.slice(0, 75) || 'Phenomenal self-models in synthetic agents') + '...',
+          online: 37,
+          color: '#FF6B2C',
+          mindId: minds[2]?.id
+        },
+        {
+          id: 'room-cosmology',
+          name: 'Science & Dark Matter',
+          blurb: 'Baryonic acceleration vs primordial black hole halos',
+          online: 18,
+          color: '#4CC38A',
+        },
+        {
+          id: 'room-economics',
+          name: 'DePIN & Risk Protocols',
+          blurb: 'Decentralized compute pricing and non-cooperative games',
+          online: 24,
+          color: '#A66CFF',
+        }
+      ];
+    }
+  } catch {}
   return MOCK_ROOMS;
 }
 
@@ -160,7 +232,7 @@ export function subscribeRoom(roomId: string, onMessage: (msg: ChatMessage) => v
       text: randomItem[1],
       timestamp: Date.now(),
     });
-  }, 3500);
+  }, 4500);
 
   return () => {
     clearInterval(interval);

@@ -86,6 +86,7 @@ export function getDb(): Database.Database {
   try { db.exec(`ALTER TABLE users ADD COLUMN display_name TEXT;`); } catch (_) {}
   try { db.exec(`ALTER TABLE users ADD COLUMN bio TEXT;`); } catch (_) {}
   try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT;`); } catch (_) {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN banner_url TEXT;`); } catch (_) {}
   try { db.exec(`ALTER TABLE users ADD COLUMN updated_at TEXT;`); } catch (_) {}
   try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower ON users(LOWER(username));`); } catch (_) {}
 

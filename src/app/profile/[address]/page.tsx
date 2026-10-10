@@ -133,6 +133,7 @@ interface UserProfileData {
   displayName: string | null;
   bio: string | null;
   avatarUrl: string | null;
+  bannerUrl: string | null;
   createdAt: string;
   updatedAt?: string | null;
 }
@@ -188,12 +189,17 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [editBannerUrl, setEditBannerUrl] = useState('');
   const [usernameStatus, setUsernameStatus] = useState<{ checking: boolean; available?: boolean; reason?: string }>({ checking: false });
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [copiedWallet, setCopiedWallet] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const avatarFileRef = useRef<HTMLInputElement>(null);
+  const bannerFileRef = useRef<HTMLInputElement>(null);
 
   const isOwner = Boolean(
     connectedAddress &&
@@ -212,6 +218,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
           setEditDisplayName(data.user.displayName || '');
           setEditBio(data.user.bio || '');
           setEditAvatarUrl(data.user.avatarUrl || '');
+          setEditBannerUrl(data.user.bannerUrl || '');
         }
       }
     } catch (err) {
@@ -224,6 +231,55 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  async function handleFileUpload(file: File, type: 'avatar' | 'banner') {
+    if (type === 'avatar') setUploadingAvatar(true);
+    else setUploadingBanner(true);
+    setSaveError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', type);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      const uploadedUrl = data.url;
+      if (type === 'avatar') {
+        setEditAvatarUrl(uploadedUrl);
+      } else {
+        setEditBannerUrl(uploadedUrl);
+      }
+
+      // If user quick-uploaded outside the edit modal, persist immediately
+      const targetWallet = connectedAddress || profile?.address;
+      if (targetWallet && !isEditModalOpen) {
+        await fetch('/api/users/profile', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: targetWallet,
+            ...(type === 'avatar' ? { avatarUrl: uploadedUrl } : { bannerUrl: uploadedUrl }),
+          }),
+        });
+        await fetchProfile();
+      }
+    } catch (err: any) {
+      setSaveError(err.message || 'File upload failed');
+      console.error('File upload error:', err);
+    } finally {
+      if (type === 'avatar') setUploadingAvatar(false);
+      else setUploadingBanner(false);
+    }
+  }
 
   // Live username uniqueness check
   useEffect(() => {
@@ -280,6 +336,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
           displayName: editDisplayName.trim(),
           bio: editBio.trim(),
           avatarUrl: editAvatarUrl.trim(),
+          bannerUrl: editBannerUrl.trim(),
         }),
       });
 
@@ -335,6 +392,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
   const displayName = user?.displayName || (username ? `@${username}` : null) || `Mind Pioneer`;
   const bio = user?.bio || 'Formulating autonomous agents, evidentiary theses, and prediction stakes on MindCast.';
   const avatarUrl = user?.avatarUrl;
+  const bannerUrl = user?.bannerUrl;
   const rep = profile.reputation;
   const shortAddr = profile.address.length > 10
     ? `${profile.address.slice(0, 6)}...${profile.address.slice(-4)}`
@@ -359,30 +417,68 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
           <div style={{
             height: '180px',
             width: '100%',
-            background: 'linear-gradient(135deg, #091224 0%, #10243E 40%, #0B192C 70%, #050B14 100%)',
+            background: bannerUrl
+              ? `url(${bannerUrl}) center/cover no-repeat`
+              : 'linear-gradient(135deg, #091224 0%, #10243E 40%, #0B192C 70%, #050B14 100%)',
             position: 'relative',
             overflow: 'hidden',
             borderBottom: '1px solid rgba(255,255,255,0.06)'
           }}>
-            {/* Ambient Nebula Glow */}
-            <div style={{
-              position: 'absolute',
-              top: '-50px',
-              right: '10%',
-              width: '320px',
-              height: '320px',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(79, 195, 247, 0.25) 0%, rgba(129, 140, 248, 0.05) 50%, transparent 70%)',
-              filter: 'blur(40px)',
-              pointerEvents: 'none'
-            }} />
+            {/* Ambient Nebula Glow if no custom banner */}
+            {!bannerUrl && (
+              <div style={{
+                position: 'absolute',
+                top: '-50px',
+                right: '10%',
+                width: '320px',
+                height: '320px',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(79, 195, 247, 0.25) 0%, rgba(129, 140, 248, 0.05) 50%, transparent 70%)',
+                filter: 'blur(40px)',
+                pointerEvents: 'none'
+              }} />
+            )}
+
+            {/* Quick Upload Cover Button for Owner */}
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => bannerFileRef.current?.click()}
+                disabled={uploadingBanner}
+                style={{
+                  position: 'absolute',
+                  top: '14px',
+                  right: '16px',
+                  padding: '6px 14px',
+                  background: 'rgba(5, 7, 10, 0.75)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(79, 195, 247, 0.35)',
+                  borderRadius: '100px',
+                  color: '#E0F2FE',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  zIndex: 10,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <span>📷</span>
+                <span>{uploadingBanner ? 'Uploading...' : 'Change Cover'}</span>
+              </button>
+            )}
+
             <div style={{
               position: 'absolute',
               bottom: '12px',
               right: '20px',
               fontSize: '11px',
               fontFamily: 'var(--font-mono)',
-              color: 'rgba(255,255,255,0.3)',
+              color: 'rgba(255,255,255,0.4)',
+              textShadow: '0 1px 3px rgba(0,0,0,0.8)',
               letterSpacing: '1px',
               textTransform: 'uppercase'
             }}>
@@ -422,6 +518,35 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                 }}>
                   {!avatarUrl && (username ? username[0].toUpperCase() : profile.address.slice(2, 4).toUpperCase())}
                 </div>
+                {/* Avatar Quick Upload Button for owner */}
+                {isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => avatarFileRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    title="Upload profile picture from PC"
+                    style={{
+                      position: 'absolute',
+                      bottom: '2px',
+                      left: '2px',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      background: '#4FC3F7',
+                      border: '2px solid #05070A',
+                      color: '#05070A',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      zIndex: 10,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                    }}
+                  >
+                    {uploadingAvatar ? '⌛' : '📷'}
+                  </button>
+                )}
                 {/* Online / Active Node Indicator */}
                 <div style={{
                   position: 'absolute',
@@ -1073,16 +1198,21 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000,
-          padding: '16px'
+          padding: '20px',
+          overflowY: 'auto'
         }}>
           <div style={{
             background: '#0B0F17',
-            border: '1px solid rgba(79, 195, 247, 0.25)',
+            border: '1px solid rgba(79, 195, 247, 0.3)',
             borderRadius: '20px',
             width: '100%',
-            maxWidth: '520px',
+            maxWidth: '540px',
+            maxHeight: '88vh',
             boxShadow: '0 24px 60px rgba(0,0,0,0.8)',
-            overflow: 'hidden'
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            position: 'relative'
           }}>
             {/* Modal Header */}
             <div style={{
@@ -1090,7 +1220,9 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
               borderBottom: '1px solid rgba(255,255,255,0.08)',
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              flexShrink: 0,
+              background: '#0B0F17'
             }}>
               <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#F8FAFC', margin: 0 }}>
                 Edit Cognitive Profile
@@ -1104,7 +1236,15 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleSaveProfile} style={{ padding: '20px' }}>
+            <form onSubmit={handleSaveProfile} style={{
+              padding: '20px',
+              overflowY: 'auto',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(79, 195, 247, 0.4) transparent',
+            }}>
               {saveError && (
                 <div style={{
                   padding: '10px 14px',
@@ -1232,20 +1372,117 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                 />
               </div>
 
-              {/* Avatar Presets or Custom URL */}
+              {/* Cover Banner Selection & Upload */}
               <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px' }}>
+                  Cover Banner Image
+                </label>
+                <div style={{
+                  height: '80px',
+                  borderRadius: '12px',
+                  background: editBannerUrl
+                    ? `url(${editBannerUrl}) center/cover no-repeat`
+                    : 'linear-gradient(135deg, #091224 0%, #10243E 40%, #0B192C 70%, #050B14 100%)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  marginBottom: '10px',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => bannerFileRef.current?.click()}
+                    disabled={uploadingBanner}
+                    style={{
+                      background: 'rgba(5, 7, 10, 0.75)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(79, 195, 247, 0.4)',
+                      borderRadius: '100px',
+                      color: '#E0F2FE',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      padding: '6px 16px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <span>📁</span>
+                    <span>{uploadingBanner ? 'Uploading from device...' : 'Upload Cover from PC'}</span>
+                  </button>
+                </div>
+                <input
+                  type="url"
+                  value={editBannerUrl}
+                  onChange={(e) => setEditBannerUrl(e.target.value)}
+                  placeholder="Or paste custom cover image URL (https://...)"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: '8px',
+                    color: '#CBD5E1',
+                    fontSize: '12px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* Avatar Selection & Upload */}
+              <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px' }}>
                   Avatar Selection
                 </label>
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                  {/* Avatar Preview & Upload Button */}
+                  <div style={{
+                    width: '54px',
+                    height: '54px',
+                    borderRadius: '50%',
+                    border: '2px solid #38BDF8',
+                    background: editAvatarUrl
+                      ? `url(${editAvatarUrl}) center/cover no-repeat`
+                      : 'linear-gradient(135deg, #1E293B, #0F172A)',
+                    boxShadow: '0 0 12px rgba(56, 189, 248, 0.3)',
+                    flexShrink: 0
+                  }} />
+                  <button
+                    type="button"
+                    onClick={() => avatarFileRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      borderRadius: '100px',
+                      color: '#38BDF8',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      padding: '8px 18px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <span>📁</span>
+                    <span>{uploadingAvatar ? 'Uploading from device...' : 'Upload Avatar from PC'}</span>
+                  </button>
+                </div>
+
+                <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '8px' }}>Or select from presets:</div>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
                   {AVATAR_PRESETS.map((p, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setEditAvatarUrl(p.url)}
                       style={{
-                        width: '44px',
-                        height: '44px',
+                        width: '40px',
+                        height: '40px',
                         borderRadius: '50%',
                         border: editAvatarUrl === p.url ? '2px solid #38BDF8' : '2px solid rgba(255,255,255,0.1)',
                         background: `url(${p.url}) center/cover no-repeat`,
@@ -1275,8 +1512,21 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
                 />
               </div>
 
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              {/* Sticky Action Buttons Footer */}
+              <div style={{
+                position: 'sticky',
+                bottom: 0,
+                background: 'linear-gradient(to top, #0B0F17 85%, rgba(11, 15, 23, 0.6) 100%)',
+                paddingTop: '16px',
+                paddingBottom: '4px',
+                marginTop: '16px',
+                borderTop: '1px solid rgba(255,255,255,0.06)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '12px',
+                zIndex: 20
+              }}>
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
@@ -1314,6 +1564,34 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
           </div>
         </div>
       )}
+
+      {/* Hidden file inputs for direct PC upload */}
+      <input
+        type="file"
+        ref={avatarFileRef}
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            handleFileUpload(file, 'avatar');
+            e.target.value = '';
+          }
+        }}
+      />
+      <input
+        type="file"
+        ref={bannerFileRef}
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            handleFileUpload(file, 'banner');
+            e.target.value = '';
+          }
+        }}
+      />
     </AppShell>
   );
 }

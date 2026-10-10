@@ -61,11 +61,14 @@ export async function POST(
       resolutionMethod,
       resolutionSource,
       confidenceAtCreation,
+      confidence,
     } = body;
 
-    if (!claim || confidenceAtCreation === undefined) {
+    const finalConfidence = confidenceAtCreation !== undefined ? Number(confidenceAtCreation) : (confidence !== undefined ? Number(confidence) : 75);
+
+    if (!claim) {
       return NextResponse.json(
-        { error: 'Missing required fields: claim, confidenceAtCreation' },
+        { error: 'Missing required field: claim' },
         { status: 400 }
       );
     }
@@ -78,7 +81,7 @@ export async function POST(
       targetDate || null,
       resolutionMethod || null,
       resolutionSource || null,
-      Number(confidenceAtCreation)
+      finalConfidence
     );
 
     // Recalculate reputation

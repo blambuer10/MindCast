@@ -2427,3 +2427,486 @@ svg.i {
   box-shadow: 0 0 24px rgba(79, 195, 247, 0.6) !important;
 }
 
+/* ============================================================================
+   X-STYLE EXPANDED DEBATE & PREDICTIONS THREAD
+   ============================================================================ */
+
+.x-stat-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--mute);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 99px;
+  transition: all 0.15s ease;
+}
+
+.x-stat-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+}
+
+.x-stat-btn.active {
+  background: rgba(79, 195, 247, 0.12);
+  color: #4FC3F7;
+  font-weight: 600;
+}
+
+.x-pred-bullet {
+  font-size: 14px;
+}
+
+.x-thread-container {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  animation: fadeInThread 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInThread {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.x-thread-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+}
+
+.x-thread-tab {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--mute);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.x-thread-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+}
+
+.x-thread-tab.selected {
+  background: rgba(79, 195, 247, 0.08);
+  border-color: rgba(79, 195, 247, 0.35);
+  color: #4FC3F7;
+}
+
+.x-tab-sub {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.x-replies-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--mute);
+}
+
+.x-join-btn {
+  background: rgba(79, 195, 247, 0.12);
+  border: 1px solid rgba(79, 195, 247, 0.25);
+  color: #4FC3F7;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.x-join-btn:hover {
+  background: rgba(79, 195, 247, 0.2);
+  color: #fff;
+}
+
+/* X Reply Card */
+.x-replies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.x-reply-card {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.x-reply-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.x-reply-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.x-reply-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.x-reply-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.x-author-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.x-author-handle {
+  font-size: 12px;
+  color: var(--mute);
+}
+
+.x-reply-time {
+  font-size: 12px;
+  color: var(--mute);
+}
+
+.x-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--ink);
+}
+
+.x-role-tag {
+  font-size: 10px;
+  color: #94A3B8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Stance Pill */
+.x-stance-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  margin-bottom: 6px;
+}
+
+.x-stance-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.x-stance-pill.agree {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.x-stance-pill.agree .dot {
+  background: #10B981;
+}
+
+.x-stance-pill.disagree {
+  background: rgba(239, 68, 68, 0.12);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.x-stance-pill.disagree .dot {
+  background: #EF4444;
+}
+
+.x-stance-pill.split {
+  background: rgba(245, 158, 11, 0.12);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.x-stance-pill.split .dot {
+  background: #F59E0B;
+}
+
+.x-reply-text {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #E2E8F0;
+  margin: 0 0 8px;
+}
+
+.x-reply-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--mute);
+}
+
+.x-like-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--mute);
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.x-like-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+}
+
+.x-like-btn.liked {
+  color: #EF4444;
+  font-weight: 700;
+}
+
+.x-action-link {
+  color: var(--mute);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.x-action-link:hover {
+  color: #4FC3F7;
+}
+
+.x-audit-label {
+  margin-left: auto;
+  font-size: 11px;
+  color: #64748B;
+}
+
+/* Predictions Card */
+.x-predictions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.x-prediction-card {
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  transition: all 0.15s ease;
+}
+
+.x-prediction-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(79, 195, 247, 0.2);
+}
+
+.x-pred-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+
+.x-pred-tag-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.x-pred-number {
+  background: rgba(79, 195, 247, 0.12);
+  color: #4FC3F7;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.x-pred-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.x-pred-status.status-proven {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.x-pred-status.status-active {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+}
+
+.x-pred-status.status-pending {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60A5FA;
+}
+
+.x-pred-date {
+  color: var(--mute);
+  font-size: 12px;
+}
+
+.x-pred-claim {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 6px;
+  line-height: 1.35;
+}
+
+.x-pred-explanation {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #CBD5E1;
+  margin: 0 0 6px;
+}
+
+.x-pred-criteria {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #94A3B8;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  border-left: 2px solid #4FC3F7;
+}
+
+.x-pred-metrics {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.x-metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.x-metric-item .lbl {
+  font-size: 10px;
+  color: var(--mute);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.x-metric-item .val {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.x-metric-item .val.highlight {
+  color: #10B981;
+}
+
+.x-conf-bar {
+  width: 90px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.x-conf-fill {
+  height: 100%;
+  border-radius: 99px;
+}
+
+.x-pred-action {
+  margin-left: auto;
+}
+
+.x-stake-cta {
+  background: rgba(79, 195, 247, 0.12);
+  border: 1px solid rgba(79, 195, 247, 0.25);
+  color: #4FC3F7;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s;
+  display: inline-block;
+}
+
+.x-stake-cta:hover {
+  background: #4FC3F7;
+  color: #05070A;
+}
+
+.x-thread-footer {
+  text-align: center;
+  padding-top: 8px;
+}
+
+.x-view-full-thread {
+  color: #4FC3F7;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.x-view-full-thread:hover {
+  text-decoration: underline;
+}
+
+

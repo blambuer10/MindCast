@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import AppShell from '@/components/layout/AppShell';
 import Panel from '@/components/ui/Panel';
 import VoteBar from '@/components/ui/VoteBar';
@@ -9,6 +10,7 @@ import type { ArenaRoom, ChatMessage } from '@/types/mind';
 import { MOCK_CHAT_POOL } from '@/mocks/minds';
 
 function ArenaContent() {
+  const router = useRouter();
   const [rooms, setRooms] = useState<ArenaRoom[]>([]);
   const [selectedRoomIndex, setSelectedRoomIndex] = useState<number | null>(0);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -43,6 +45,8 @@ function ArenaContent() {
       });
     }
     setMessages(initial);
+    setPollVotes([Math.floor(45 + Math.random() * 40), Math.floor(20 + Math.random() * 35)]);
+    setHasVotedPoll(false);
 
     const roomId = rooms[selectedRoomIndex]?.id || 'room';
     const unsubscribe = subscribeRoom(roomId, (newMsg) => {
@@ -102,6 +106,11 @@ function ArenaContent() {
   const percentYes = Math.round((pollVotes[0] / totalPollVotes) * 100);
   const percentNo = 100 - percentYes;
 
+  // Dynamic poll question based on selected room's mind
+  const pollQuestion = selectedRoom
+    ? `Will "${selectedRoom.name}" maintain high confidence through Q1 2027?`
+    : 'Will this Mind maintain high confidence through Q1 2027?';
+
   return (
     <div className="pad">
       <div className="rooms" role="tablist" aria-label="Arena rooms">
@@ -130,6 +139,27 @@ function ArenaContent() {
             title={`${selectedRoom.name} · live chat`}
             color={selectedRoom.color}
           >
+            {/* Link to Mind Dossier if available */}
+            {selectedRoom.mindId && (
+              <div style={{ marginBottom: '10px' }}>
+                <button
+                  onClick={() => router.push(`/idea/${selectedRoom.mindId}`)}
+                  style={{
+                    background: 'rgba(79, 195, 247, 0.08)',
+                    border: '1px solid rgba(79, 195, 247, 0.25)',
+                    borderRadius: '8px',
+                    padding: '4px 12px',
+                    fontSize: '11px',
+                    color: 'var(--cyan)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  📄 Open Mind Dossier →
+                </button>
+              </div>
+            )}
+
             <div
               id="chat"
               ref={chatContainerRef}
@@ -185,7 +215,7 @@ function ArenaContent() {
             </div>
           </Panel>
 
-          <Panel title="Poll: will Mind 590A stay above 90% through December?">
+          <Panel title={pollQuestion}>
             <VoteBar
               percentageA={percentYes}
               labelA={`Yes ${percentYes}%`}
@@ -197,7 +227,7 @@ function ArenaContent() {
 
             {hasVotedPoll ? (
               <p className="fine" style={{ marginTop: '12px' }}>
-                Prediction locked in.
+                Prediction locked in. {totalPollVotes} votes total.
               </p>
             ) : (
               <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>

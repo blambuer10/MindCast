@@ -8,6 +8,30 @@ export interface PanelReaction {
   comment: string;
 }
 
+export interface MindDebateItem {
+  id: string;
+  author: string;
+  handle: string;
+  avatarColor?: string;
+  role?: string;
+  stance: 'agree' | 'disagree' | 'split';
+  content: string;
+  timestamp?: string;
+  likes?: number;
+  badge?: string;
+}
+
+export interface MindPredictionItem {
+  id: string;
+  claim: string;
+  targetDate: string;
+  confidence: number;
+  status: 'Pending' | 'Active' | 'Proven' | 'Challenged';
+  stakedAmount?: string;
+  explanation: string;
+  resolutionCriteria?: string;
+}
+
 export interface Mind {
   id: string;
   name: string; // e.g. "Mind 590A"
@@ -27,6 +51,8 @@ export interface Mind {
   createdAt: string; // ISO date
   panel: PanelReaction[]; // one per AI model
   stanceString: string; // e.g. "aaasas"
+  debatesList?: MindDebateItem[];
+  predictionsList?: MindPredictionItem[];
 }
 
 export interface NoosphereConfig {
@@ -48,6 +74,7 @@ export interface ArenaRoom {
   blurb: string;
   color: string;
   online: number;
+  mindId?: string;
 }
 
 export interface ChatMessage {

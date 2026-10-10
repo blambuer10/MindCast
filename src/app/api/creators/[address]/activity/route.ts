@@ -369,6 +369,7 @@ export async function GET(
         displayName: user.displayName,
         bio: user.bio,
         avatarUrl: user.avatarUrl,
+        bannerUrl: user.bannerUrl,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },

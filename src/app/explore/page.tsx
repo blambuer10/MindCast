@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AppShell from '@/components/layout/AppShell';
-import { MOCK_MINDS } from '@/mocks/minds';
 import MindPost from '@/components/minds/MindPost';
+import { listMinds } from '@/api/minds';
+import type { Mind } from '@/types/mind';
 
 const TOPIC_CHIPS = [
   { slug: '', label: 'All Topics' },
@@ -20,10 +21,22 @@ function ExploreContent() {
   const initialTopic = searchParams.get('topic') || '';
 
   const [selectedTopic, setSelectedTopic] = useState<string>(initialTopic);
+  const [minds, setMinds] = useState<Mind[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredMocks = selectedTopic
-    ? MOCK_MINDS.filter(m => m.noosphere.toLowerCase().includes(selectedTopic.toLowerCase()))
-    : MOCK_MINDS;
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const data = await listMinds();
+      setMinds(data);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  const filtered = selectedTopic
+    ? minds.filter(m => m.noosphere.toLowerCase().includes(selectedTopic.toLowerCase()))
+    : minds;
 
   return (
     <div className="pad">
@@ -47,9 +60,15 @@ function ExploreContent() {
       </div>
 
       <div className="feed">
-        {filteredMocks.map((mind) => (
-          <MindPost key={mind.id} mind={mind} />
-        ))}
+        {loading ? (
+          <div className="empty">Loading Minds...</div>
+        ) : filtered.length > 0 ? (
+          filtered.map((mind) => (
+            <MindPost key={mind.id} mind={mind} />
+          ))
+        ) : (
+          <div className="empty">No Minds found in this noosphere.</div>
+        )}
       </div>
     </div>
   );
