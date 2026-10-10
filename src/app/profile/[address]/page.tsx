@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use, useRef } from 'react';
+import { useState, useEffect, useCallback, use, useRef } from 'react';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import { useWallet } from '@/hooks/useWallet';
@@ -201,7 +201,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
      profile?.user?.walletAddress?.toLowerCase() === connectedAddress.toLowerCase())
   );
 
-  async function fetchProfile() {
+  const fetchProfile = useCallback(async () => {
     try {
       const res = await fetch(`/api/creators/${address}/activity`);
       if (res.ok) {
@@ -219,11 +219,11 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
     } finally {
       setLoading(false);
     }
-  }
+  }, [address]);
 
   useEffect(() => {
     fetchProfile();
-  }, [address]);
+  }, [fetchProfile]);
 
   // Live username uniqueness check
   useEffect(() => {
@@ -248,7 +248,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
         const res = await fetch(`/api/users/check-username?username=${encodeURIComponent(clean)}&currentWallet=${encodeURIComponent(curr)}`);
         const json = await res.json();
         setUsernameStatus({ checking: false, available: json.available, reason: json.reason });
-      } catch (err) {
+      } catch {
         setUsernameStatus({ checking: false });
       }
     }, 350);

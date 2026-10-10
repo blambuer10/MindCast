@@ -68,7 +68,7 @@ export default function Header() {
         
         {isConnected && address ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <a
+            <Link
               href={`/profile/${address}`}
               id="header-profile-badge"
               style={{
@@ -82,12 +82,6 @@ export default function Header() {
                 border: '1px solid rgba(255,255,255,0.15)',
                 cursor: 'pointer',
                 transition: 'background 0.2s, border-color 0.2s',
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                if (typeof window !== 'undefined') {
-                  window.location.href = `/profile/${address}`;
-                }
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
@@ -121,7 +115,7 @@ export default function Header() {
               }}>
                 {formatAddress(address)}
               </span>
-            </a>
+            </Link>
             <button
               className="primary-button"
               style={{ minHeight: '34px', padding: '0 12px', fontSize: '12px' }}

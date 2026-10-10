@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, useCallback, use } from 'react';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useWallet } from '@/hooks/useWallet';
-import type { Idea, Agent, MindState, Prediction, Evidence, Argument, AgentEvent } from '@/lib/types';
+import { MOCK_MINDS } from '@/mocks/minds';
+import type { Idea, Agent, MindState, Prediction, Evidence, AgentEvent } from '@/lib/types';
 
 interface IdeaPageData {
   idea: Idea;
@@ -107,7 +108,7 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
   // Expandable economics section
   const [showEconomicsDrawer, setShowEconomicsDrawer] = useState(false);
 
-  const fetchDetail = async () => {
+  const fetchDetail = useCallback(async () => {
     try {
       const url = address ? `/api/ideas/${ideaId}?walletAddress=${address}` : `/api/ideas/${ideaId}`;
       const res = await fetch(url);
@@ -116,17 +117,81 @@ export default function IdeaPage({ params }: { params: Promise<{ ideaId: string 
         setData(json);
         setFollowing(Boolean(json.isFollowing));
         setFollowerCount(json.followerCount || 0);
+        return;
       }
     } catch (err) {
-      console.error('Failed to fetch idea detail:', err);
-    } finally {
-      setLoading(false);
+      console.warn('Backend fetch failed, attempting fixture fallback:', err);
     }
-  };
+
+    // Fixture fallback for local development or prototype minds
+    const mockMind = MOCK_MINDS.find(
+      m => m.id === ideaId ||
+      m.handle === ideaId ||
+      m.name.toLowerCase().includes(ideaId.toLowerCase())
+    );
+
+    if (mockMind) {
+      setData({
+        idea: {
+          id: mockMind.id,
+          creatorId: 'mock-creator',
+          content: mockMind.claim,
+          agentId: mockMind.id,
+          status: 'PUBLISHED' as any,
+          tokenName: mockMind.name,
+          tokenTicker: mockMind.name.replace(/\s+/g, ''),
+          createdAt: mockMind.createdAt,
+          publishedAt: mockMind.createdAt,
+        },
+        agent: {
+          id: mockMind.id,
+          ideaId: mockMind.id,
+          thesis: mockMind.claim,
+          confidence: mockMind.confidence ?? 50,
+          credibility: 85,
+          systemPrompt: '',
+          computeBudget: 100,
+          computeSpent: 40,
+          computeRemaining: 60,
+          lifecycleStatus: (mockMind.status === 'Proven' ? 'PROVEN' : mockMind.status === 'Debating' ? 'ACTIVE' : 'EMERGING') as any,
+          predictionAccuracy: 88,
+          calibrationScore: 92,
+          estimatedValue: 12500,
+          marketStatus: 'Active',
+          createdAt: mockMind.createdAt,
+          updatedAt: mockMind.createdAt,
+        } as any,
+        mindState: {
+          id: mockMind.id,
+          agentId: mockMind.id,
+          currentThesis: mockMind.claim,
+          synopsis: mockMind.summary,
+          confidence: mockMind.confidence ?? 50,
+          isAssessed: mockMind.confidence !== null,
+          evidenceCount: mockMind.citations,
+          argumentsCount: mockMind.arguments,
+          supportingCount: 3,
+          challengingCount: 1,
+          domain: mockMind.noosphere,
+          domainIcon: '⚡',
+          citationSample: `${mockMind.sourceTitle}: ${mockMind.sourceExcerpt}`,
+          predictionStatement: `${mockMind.name} prediction for 2027`,
+          lastUpdated: mockMind.createdAt,
+          createdAt: mockMind.createdAt,
+          epoch: String(mockMind.year),
+        } as any,
+        predictions: [],
+        followerCount: 128,
+        isFollowing: false,
+      });
+    }
+
+    setLoading(false);
+  }, [ideaId, address]);
 
   useEffect(() => {
     fetchDetail();
-  }, [ideaId, address]);
+  }, [fetchDetail]);
 
   const handleFollowToggle = async () => {
     if (!isConnected || !address) {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { WalletProvider } from "@/hooks/useWallet";
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://mindcast.fun'),
@@ -25,9 +26,6 @@ export const metadata: Metadata = {
   },
 };
 
-import { WalletProvider } from "@/hooks/useWallet";
-import MobileNav from "@/components/layout/MobileNav";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -38,7 +36,6 @@ export default function RootLayout({
       <body>
         <WalletProvider>
           {children}
-          <MobileNav />
         </WalletProvider>
       </body>
     </html>
