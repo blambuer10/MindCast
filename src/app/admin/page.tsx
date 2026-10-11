@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
+import { useWallet } from '@/hooks/useWallet';
+
+const AUTHORIZED_ADMIN_WALLET = '0x33f18d0bd613a2afa4694a8aaa6b1daf4febdbd2'.toLowerCase();
 
 interface NetworkInfo {
   chainId: number;
@@ -124,6 +127,9 @@ interface OverviewData {
 }
 
 export default function AdminPage() {
+  const { isConnected, address, connect, disconnect, isConnecting } = useWallet();
+  const isAdmin = isConnected && !!address && address.toLowerCase() === AUTHORIZED_ADMIN_WALLET;
+
   const [activeTab, setActiveTab] = useState<'networks' | 'users' | 'transactions' | 'minds' | 'logs'>('networks');
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -134,6 +140,7 @@ export default function AdminPage() {
   const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
 
   const triggerZeroGSync = async () => {
+    if (!isAdmin) return;
     setIsSyncing(true);
     setSyncStatusMsg('Syncing to MINDCAST Storage...');
     try {
@@ -153,8 +160,11 @@ export default function AdminPage() {
   };
 
   async function fetchOverview() {
+    if (!isAdmin || !address) return;
     try {
-      const res = await fetch(`/api/admin/overview?t=${Date.now()}`);
+      const res = await fetch(`/api/admin/overview?wallet=${address}&t=${Date.now()}`, {
+        headers: { 'x-admin-wallet': address }
+      });
       if (res.ok) {
         const json = await res.json();
         setData(json);
@@ -168,10 +178,16 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    fetchOverview();
-    const interval = setInterval(fetchOverview, 10000); // 10s auto-refresh
-    return () => clearInterval(interval);
-  }, []);
+    if (isAdmin && address) {
+      setLoading(true);
+      fetchOverview();
+      const interval = setInterval(fetchOverview, 10000); // 10s auto-refresh
+      return () => clearInterval(interval);
+    } else {
+      setLoading(false);
+      setData(null);
+    }
+  }, [isAdmin, address]);
 
   const filteredUsers = (data?.users || []).filter(u => 
     !userSearch || u.wallet_address?.toLowerCase().includes(userSearch.toLowerCase()) || u.name?.toLowerCase().includes(userSearch.toLowerCase())
@@ -184,6 +200,63 @@ export default function AdminPage() {
     if (mindFilter === 'PROVEN') return m.lifecycle_status === 'PROVEN';
     return true;
   });
+
+  if (!isAdmin) {
+    return (
+      <>
+        <Header />
+        <main className="page-container" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)' }}>
+          <div className="card" style={{ maxWidth: '480px', width: '100%', padding: 'var(--space-8)', textAlign: 'center', border: '1px solid rgba(239, 68, 68, 0.25)', background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.05) 0%, rgba(15, 23, 42, 0.95) 100%)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', borderRadius: '16px' }}>
+            <div style={{ width: '64px', height: '64px', margin: '0 auto var(--space-4)', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>
+              🔒
+            </div>
+            
+            <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--parchment)', marginBottom: 'var(--space-2)', fontFamily: 'var(--font-display)' }}>
+              Restricted Admin Portal
+            </h1>
+            
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)', lineHeight: 1.6, marginBottom: 'var(--space-6)' }}>
+              This command center is secured. Access is granted exclusively to the authorized administrator wallet.
+            </p>
+
+            {!isConnected ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <button
+                  onClick={connect}
+                  disabled={isConnecting}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '12px', fontSize: 'var(--text-sm)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  <span>⚡ Connect Admin Wallet</span>
+                </button>
+                <Link href="/" className="btn btn-secondary" style={{ width: '100%', padding: '10px', fontSize: 'var(--text-xs)', textDecoration: 'none' }}>
+                  Return to Home
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                <div style={{ padding: 'var(--space-3)', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '8px', fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)', color: 'var(--error)' }}>
+                  Connected: {address?.slice(0, 8)}...{address?.slice(-6)} (Unauthorized)
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+                  <button
+                    onClick={connect}
+                    className="btn btn-secondary"
+                    style={{ flex: 1, padding: '10px', fontSize: 'var(--text-xs)' }}
+                  >
+                    Switch Wallet
+                  </button>
+                  <Link href="/" className="btn btn-secondary" style={{ flex: 1, padding: '10px', fontSize: 'var(--text-xs)', textDecoration: 'none' }}>
+                    Return to Home
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>

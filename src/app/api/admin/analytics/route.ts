@@ -8,7 +8,22 @@ import { getDb } from '@/lib/database/connection';
 
 export const dynamic = 'force-dynamic';
 
+const AUTHORIZED_ADMIN = '0x33f18d0bd613a2afa4694a8aaa6b1daf4febdbd2'.toLowerCase();
+
 export async function GET(request: NextRequest) {
+  const callerWallet = (
+    request.headers.get('x-admin-wallet') ||
+    request.nextUrl.searchParams.get('wallet') ||
+    ''
+  ).toLowerCase();
+
+  if (callerWallet !== AUTHORIZED_ADMIN) {
+    return NextResponse.json(
+      { error: 'Unauthorized: Admin wallet verification required.' },
+      { status: 403 }
+    );
+  }
+
   const payload: any = {
     timestamp: new Date().toISOString(),
     overview: {
