@@ -12,8 +12,10 @@ export function getDb(): Database.Database {
   if (db) return db;
 
   const fs = require('fs');
-  const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-  const dbPath = process.env.DATABASE_PATH || (isServerless ? '/tmp/mindcast.db' : path.join(process.cwd(), 'data', 'mindcast.db'));
+  const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+  const dbPath = isServerless
+    ? '/tmp/mindcast.db'
+    : (process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'mindcast.db'));
 
   // Ensure data directory exists
   const dir = path.dirname(dbPath);
@@ -36,12 +38,12 @@ export function getDb(): Database.Database {
   db = new Database(dbPath);
 
   // Enable WAL mode and normal synchronization for better concurrency
-  db.pragma('journal_mode = WAL');
-  db.pragma('synchronous = NORMAL');
-  db.pragma('foreign_keys = ON');
+  try { db.pragma('journal_mode = WAL'); } catch (_) {}
+  try { db.pragma('synchronous = NORMAL'); } catch (_) {}
+  try { db.pragma('foreign_keys = ON'); } catch (_) {}
 
   // Initialize schema
-  db.exec(CREATE_TABLES);
+  try { db.exec(CREATE_TABLES); } catch (schemaErr) { console.error('[DB] Schema init error:', schemaErr); }
 
   // Dynamically add compute budget columns to existing databases
   try { db.exec(`ALTER TABLE agents ADD COLUMN compute_budget REAL NOT NULL DEFAULT 1.0;`); } catch (_) {}

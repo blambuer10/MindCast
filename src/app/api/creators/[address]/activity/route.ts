@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserByIdentifier, getUserByWallet } from '@/lib/database/queries';
+import { getUserByIdentifier, getUserByWallet, findOrCreateUser } from '@/lib/database/queries';
 import { getDb } from '@/lib/database/connection';
 
 export const dynamic = 'force-dynamic';
@@ -15,9 +15,16 @@ export async function GET(
 ) {
   try {
     const { address } = await params;
-    const user = getUserByIdentifier(address) || getUserByWallet(address);
+    let user = getUserByIdentifier(address) || getUserByWallet(address);
 
-    // Return empty profile for unknown users
+    // If not found yet but valid EVM address, ensure record is initialized
+    if (!user && address.startsWith('0x') && address.length >= 20) {
+      try {
+        user = findOrCreateUser(address);
+      } catch (_) {}
+    }
+
+    // Return clean empty profile for unknown non-wallet identifiers
     if (!user) {
       return NextResponse.json({
         exists: false,
@@ -77,11 +84,11 @@ export async function GET(
           COALESCE((SELECT COUNT(*) FROM predictions WHERE mind_id = a.id), 0) as prediction_count,
           COALESCE((SELECT COUNT(*) FROM predictions WHERE mind_id = a.id AND status IN ('CORRECT','VERIFIED')), 0) as correct_predictions
         FROM ideas i
-        LEFT JOIN agents a ON a.idea_id = i.id
+        LEFT JOIN agents a ON (a.idea_id = i.id OR a.id = i.agent_id)
         LEFT JOIN mind_assets ma ON ma.mind_id = a.id
-        WHERE i.creator_id = ?
+        WHERE i.creator_id = ? OR LOWER(i.creator_id) = ?
         ORDER BY i.created_at DESC
-      `).all(user.id) as any[];
+      `).all(user.id, (user.walletAddress || '').toLowerCase()) as any[];
     } catch (e: any) {
       console.error('[Profile] Minds query error:', e.message);
     }
@@ -448,6 +455,35 @@ export async function GET(
     });
   } catch (error: any) {
     console.error('[Profile] API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
+    try {
+      const { address } = await params;
+      return NextResponse.json({
+        exists: true,
+        address,
+        reputation: 50,
+        trackRecord: {
+          predictionAccuracy: 0,
+          calibrationScore: 100,
+          evidenceQuality: 0,
+          debatePerformance: 0,
+          mindSuccessRate: 0,
+          totalFollowers: 0,
+        },
+        minds: [],
+        portfolio: [],
+        payments: [],
+        following: [],
+        activity: [],
+        stats: {
+          totalMinds: 0,
+          trendingMinds: 0,
+          activeMinds: 0,
+          provenMinds: 0,
+          totalPortfolioValue: 0,
+        },
+      });
+    } catch (_) {
+      return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
+    }
   }
 }

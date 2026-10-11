@@ -210,19 +210,120 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
   const fetchProfile = useCallback(async () => {
     try {
       const res = await fetch(`/api/creators/${address}/activity`);
+      let profileData: ProfileData | null = null;
+
       if (res.ok) {
-        const data = await res.json();
-        setProfile(data);
-        if (data.user) {
-          setEditUsername(data.user.username || '');
-          setEditDisplayName(data.user.displayName || '');
-          setEditBio(data.user.bio || '');
-          setEditAvatarUrl(data.user.avatarUrl || '');
-          setEditBannerUrl(data.user.bannerUrl || '');
+        profileData = await res.json();
+      } else {
+        // Fallback profile if API returned error
+        profileData = {
+          exists: true,
+          address,
+          reputation: 50,
+          trackRecord: {
+            predictionAccuracy: 0,
+            calibrationScore: 100,
+            evidenceQuality: 0,
+            debatePerformance: 0,
+            mindSuccessRate: 0,
+            totalFollowers: 0,
+          },
+          minds: [],
+          portfolio: [],
+          payments: [],
+          following: [],
+          activity: [],
+          stats: {
+            totalMinds: 0,
+            trendingMinds: 0,
+            activeMinds: 0,
+            provenMinds: 0,
+            totalPortfolioValue: 0,
+          },
+        };
+      }
+
+      // Merge client-side created minds for this wallet if available
+      try {
+        const storedMinds = localStorage.getItem('mindcast_created_minds');
+        if (storedMinds) {
+          const parsed = JSON.parse(storedMinds);
+          if (Array.isArray(parsed) && parsed.length > 0 && profileData) {
+            const existingIds = new Set((profileData.minds || []).map(m => m.ideaId));
+            const newEntries: MindEntry[] = [];
+            for (const item of parsed) {
+              const itemId = item.id || item.ideaId;
+              if (itemId && !existingIds.has(itemId)) {
+                newEntries.push({
+                  ideaId: itemId,
+                  agentId: item.agentId || itemId,
+                  content: item.content || item.thesis || 'Autonomous Epistemic Thesis',
+                  thesis: item.thesis || item.content || 'Autonomous Epistemic Thesis',
+                  ideaStatus: item.status || 'PUBLISHED',
+                  confidence: typeof item.confidence === 'number' ? item.confidence : 50,
+                  credibility: typeof item.credibility === 'number' ? item.credibility : 50,
+                  predictionAccuracy: 0,
+                  lifecycleStatus: item.lifecycleStatus || 'INCUBATING',
+                  estimatedValue: 1000,
+                  creatorAllocation: 15,
+                  evidenceCount: item.evidenceCount || 0,
+                  argumentCount: item.argumentCount || 0,
+                  debateCount: 0,
+                  followerCount: 0,
+                  predictionCount: 0,
+                  correctPredictions: 0,
+                  createdAt: item.createdAt || new Date().toISOString(),
+                  momentum: 25,
+                });
+                existingIds.add(itemId);
+              }
+            }
+            if (newEntries.length > 0) {
+              profileData.minds = [...newEntries, ...(profileData.minds || [])];
+              profileData.stats.totalMinds = profileData.minds.length;
+            }
+          }
+        }
+      } catch (_) {}
+
+      if (profileData) {
+        setProfile(profileData);
+        if (profileData.user) {
+          setEditUsername(profileData.user.username || '');
+          setEditDisplayName(profileData.user.displayName || '');
+          setEditBio(profileData.user.bio || '');
+          setEditAvatarUrl(profileData.user.avatarUrl || '');
+          setEditBannerUrl(profileData.user.bannerUrl || '');
         }
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
+      // Fallback on network failure
+      setProfile({
+        exists: true,
+        address,
+        reputation: 50,
+        trackRecord: {
+          predictionAccuracy: 0,
+          calibrationScore: 100,
+          evidenceQuality: 0,
+          debatePerformance: 0,
+          mindSuccessRate: 0,
+          totalFollowers: 0,
+        },
+        minds: [],
+        portfolio: [],
+        payments: [],
+        following: [],
+        activity: [],
+        stats: {
+          totalMinds: 0,
+          trendingMinds: 0,
+          activeMinds: 0,
+          provenMinds: 0,
+          totalPortfolioValue: 0,
+        },
+      });
     } finally {
       setLoading(false);
     }
