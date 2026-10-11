@@ -222,7 +222,7 @@ export default function AdminPage() {
             {!isConnected ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                 <button
-                  onClick={connect}
+                  onClick={() => connect()}
                   disabled={isConnecting}
                   className="btn btn-primary"
                   style={{ width: '100%', padding: '12px', fontSize: 'var(--text-sm)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
@@ -240,7 +240,7 @@ export default function AdminPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
                   <button
-                    onClick={connect}
+                    onClick={() => connect()}
                     className="btn btn-secondary"
                     style={{ flex: 1, padding: '10px', fontSize: 'var(--text-xs)' }}
                   >
