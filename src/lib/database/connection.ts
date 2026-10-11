@@ -5,6 +5,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import { CREATE_TABLES } from './schema';
+import { seedUsersToDatabase } from './seed-users';
 
 let db: Database.Database | null = null;
 
@@ -491,6 +492,30 @@ export function getDb(): Database.Database {
     try {
       db.prepare(`INSERT OR IGNORE INTO mind_topics (mind_id, topic_id, relevance_score) SELECT a.id, 'T-AI', 1.0 FROM agents a WHERE a.id NOT IN (SELECT mind_id FROM mind_topics)`).run();
     } catch (_) {}
+
+    // Seed 32 realistic Web3 and AI ecosystem users
+    try {
+      seedUsersToDatabase(db);
+    } catch (seedErr) {
+      console.warn('[DB] User seeding warning:', seedErr);
+    }
+
+    // 0G Decentralized Storage & Persistent Snapshot Rehydration
+    try {
+      const { downloadFromZeroG, importPlatformSnapshot, triggerSync } = require('@/lib/storage/zerog-sync');
+      downloadFromZeroG().then((snapshot: any) => {
+        if (snapshot && snapshot.users && snapshot.users.length > 0) {
+          importPlatformSnapshot(db, snapshot);
+        } else {
+          // If no previous snapshot existed, create first snapshot to persist the seeds
+          triggerSync(db);
+        }
+      }).catch((syncErr: any) => {
+        console.warn('[DB] 0G storage rehydration note:', syncErr.message);
+      });
+    } catch (e: any) {
+      console.warn('[DB] 0G storage hook note:', e.message);
+    }
 
   } catch (err) {
     console.error('[DB] Premier mind seeding error:', err);

@@ -48,6 +48,13 @@ export async function POST(request: NextRequest) {
     // Create idea in PENDING state with unique token identity
     const idea = createIdea(user.id, content.trim(), tokenName, tokenTicker);
 
+    // Trigger 0G sync for new idea persistence
+    try {
+      const { triggerSync } = await import('@/lib/storage/zerog-sync');
+      const { getDb } = await import('@/lib/database/connection');
+      triggerSync(getDb());
+    } catch (_) {}
+
     // Track analytics event
     const { trackEvent } = await import('@/lib/analytics/tracker');
     trackEvent('idea_submitted', user.id, { contentLength: content.trim().length, tokenTicker: idea.tokenTicker });

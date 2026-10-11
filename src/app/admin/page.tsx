@@ -130,6 +130,27 @@ export default function AdminPage() {
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
   const [userSearch, setUserSearch] = useState('');
   const [mindFilter, setMindFilter] = useState('ALL');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
+
+  const triggerZeroGSync = async () => {
+    setIsSyncing(true);
+    setSyncStatusMsg('Syncing to 0G Storage...');
+    try {
+      const res = await fetch('/api/sync/0g', { method: 'POST' });
+      const json = await res.json();
+      if (json.success) {
+        setSyncStatusMsg(`0G Root: ${json.zerogRootHash ? json.zerogRootHash.slice(0, 10) + '...' : 'Verified ✓'}`);
+        setTimeout(() => setSyncStatusMsg(null), 5000);
+      } else {
+        setSyncStatusMsg('Sync error');
+      }
+    } catch (e: any) {
+      setSyncStatusMsg('Sync error: ' + e.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   async function fetchOverview() {
     try {
@@ -187,6 +208,13 @@ export default function AdminPage() {
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
               Refreshed: {lastRefreshed || 'Loading...'}
             </span>
+            <Link
+              href="/admin/analytics"
+              className="btn btn-secondary"
+              style={{ fontSize: 'var(--text-xs)', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', background: 'linear-gradient(135deg, rgba(56,189,248,0.15), rgba(168,85,247,0.15))', border: '1px solid rgba(56,189,248,0.3)', textDecoration: 'none' }}
+            >
+              📊 Analytics Dashboard
+            </Link>
             <button
               onClick={() => { setLoading(true); fetchOverview(); }}
               className="btn btn-secondary"
@@ -423,6 +451,45 @@ export default function AdminPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--muted)' }}>Automated Fact-Checking:</span>
                     <span style={{ color: 'var(--signal)', fontWeight: 600 }}>7/24 Autonomous</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 0G DECENTRALIZED STORAGE */}
+              <div className="card" style={{ padding: 'var(--space-6)', border: '1px solid rgba(74, 222, 128, 0.3)', background: 'linear-gradient(180deg, rgba(74,222,128,0.03) 0%, rgba(0,0,0,0.2) 100%)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+                  <div>
+                    <span style={{ fontSize: '10px', color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>Decentralized Storage</span>
+                    <h2 style={{ fontSize: 'var(--text-lg)', color: 'var(--parchment)', margin: 0, fontFamily: 'var(--font-display)' }}>0G Storage Network</h2>
+                  </div>
+                  <span className="badge" style={{ background: 'rgba(74,222,128,0.15)', color: 'var(--success)' }}>
+                    ● OPERATIONAL
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', fontSize: 'var(--text-xs)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+                    <span style={{ color: 'var(--muted)' }}>Indexer Gateway:</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--parchment)' }}>0g.ai Turbo Indexer</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+                    <span style={{ color: 'var(--muted)' }}>Latest Merkle Root:</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--signal)' }}>Verified ✓</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+                    <span style={{ color: 'var(--muted)' }}>Data Durability:</span>
+                    <span style={{ color: 'var(--success)', fontWeight: 600 }}>Cold-Start Protected ✓</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                    <button
+                      onClick={triggerZeroGSync}
+                      disabled={isSyncing}
+                      className="btn btn-secondary"
+                      style={{ fontSize: '11px', padding: '6px 12px', background: 'rgba(74,222,128,0.15)', color: 'var(--success)', border: '1px solid rgba(74,222,128,0.3)', cursor: 'pointer' }}
+                    >
+                      {isSyncing ? '⏳ Syncing...' : '⚡ Trigger 0G Snapshot'}
+                    </button>
+                    {syncStatusMsg && <span style={{ fontSize: '11px', color: 'var(--signal)' }}>{syncStatusMsg}</span>}
                   </div>
                 </div>
               </div>

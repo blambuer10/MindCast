@@ -26,6 +26,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
+    // Trigger 0G sync to preserve updated user profile permanently
+    try {
+      const { triggerSync } = await import('@/lib/storage/zerog-sync');
+      const { getDb } = await import('@/lib/database/connection');
+      triggerSync(getDb());
+    } catch (_) {}
+
     return NextResponse.json({
       success: true,
       user: result.user,
@@ -47,9 +54,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Valid wallet address query param is required' }, { status: 400 });
     }
 
+    let isNew = false;
     let user = getUserByWallet(walletAddress);
     if (!user) {
       user = findOrCreateUser(walletAddress);
+      isNew = true;
+    }
+
+    // Trigger sync for new wallet user registration
+    if (isNew) {
+      try {
+        const { triggerSync } = await import('@/lib/storage/zerog-sync');
+        const { getDb } = await import('@/lib/database/connection');
+        triggerSync(getDb());
+      } catch (_) {}
     }
 
     return NextResponse.json({ user });

@@ -131,6 +131,13 @@ export async function POST(request: NextRequest) {
     const { createMindAsset } = await import('@/lib/database/queries');
     createMindAsset(agent.id, 15.0, 70.0, 10.0, 5.0, idea.tokenName || undefined, idea.tokenTicker || undefined);
 
+    // ─── Sync To 0G Storage & Persistent Backup ───
+    try {
+      const { triggerSync } = await import('@/lib/storage/zerog-sync');
+      const { getDb } = await import('@/lib/database/connection');
+      triggerSync(getDb());
+    } catch (_) {}
+
     return NextResponse.json({
       status: PaymentStatus.CONFIRMED,
       ideaId: idea.id,

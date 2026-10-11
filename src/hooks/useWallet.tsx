@@ -217,6 +217,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setBalance(null);
     } else {
       setAddress(accounts[0]);
+      try { fetch(`/api/users/profile?address=${accounts[0]}`).catch(() => {}); } catch {}
       const eth = activeProviderRef.current || getEthereumProvider();
       if (eth) {
         try {
@@ -299,6 +300,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       }
 
       setAddress(accounts[0]);
+      try { fetch(`/api/users/profile?address=${accounts[0]}`).catch(() => {}); } catch {}
       setShowSelector(false); // Close selector on success
 
       // Clear disconnect flag since user explicitly reconnected
@@ -468,6 +470,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         .then((accounts: string[]) => {
           if (accounts && accounts.length > 0) {
             setAddress(accounts[0]);
+            try { fetch(`/api/users/profile?address=${accounts[0]}`).catch(() => {}); } catch {}
             activeProviderRef.current = eth;
             try {
               const provider = new BrowserProvider(eth, 'any');

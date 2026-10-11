@@ -25,7 +25,6 @@ const NAV_ITEMS = [
   { href: '/battles', label: 'VS battles', icon: BoltIcon },
   { href: '/arena', label: 'Arena', icon: ArenaIcon },
   { href: '/my-minds', label: 'My Minds', icon: UserIcon },
-  { href: '/docs', label: 'Docs', icon: BookIcon },
 ];
 
 export default function Sidebar() {

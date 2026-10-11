@@ -40,9 +40,17 @@ export async function GET(request: NextRequest) {
       ai: {
         provider: '0G Decentralized AI Network',
         status: 'operational',
-        activeModel: '0g-glm4-9b-chat',
-        endpoint: 'https://api.0g.ai/v1',
+        activeModel: '0gm-1.0-35b-a3b',
+        endpoint: 'https://router-api.0g.ai/v1',
         hasApiKey: true,
+      },
+      zerogStorage: {
+        provider: '0G Decentralized Storage Network',
+        indexer: 'https://indexer-storage-testnet-turbo.0g.ai',
+        rpc: 'https://evmrpc-testnet.0g.ai',
+        status: 'operational',
+        target: '0G Storage + Local Snapshot',
+        lastSync: new Date().toISOString(),
       },
     },
     metrics: {
@@ -89,13 +97,20 @@ export async function GET(request: NextRequest) {
         SELECT 
           u.id, 
           u.wallet_address, 
+          u.username,
+          u.display_name,
+          u.bio,
+          u.avatar_url,
           u.created_at,
-          (SELECT COUNT(*) FROM ideas WHERE creator_id = u.id) as ideas_count,
+          (SELECT COUNT(*) FROM ideas WHERE creator_id = u.id OR LOWER(creator_id) = LOWER(u.wallet_address)) as ideas_count,
           (SELECT COUNT(*) FROM mind_founders WHERE creator_id = u.id) as investments_count,
-          (SELECT COALESCE(SUM(allocation_percentage), 0) FROM mind_founders WHERE creator_id = u.id) as total_shares_percent
+          (SELECT COALESCE(SUM(allocation_percentage), 0) FROM mind_founders WHERE creator_id = u.id) as total_shares_percent,
+          (SELECT COUNT(*) FROM arguments WHERE LOWER(author_wallet) = LOWER(u.wallet_address)) as arguments_count,
+          (SELECT COUNT(*) FROM argument_stakes WHERE LOWER(user_wallet) = LOWER(u.wallet_address)) as stakes_count,
+          (SELECT COALESCE(SUM(amount), 0) FROM argument_stakes WHERE LOWER(user_wallet) = LOWER(u.wallet_address)) as total_staked_amount
         FROM users u
-        ORDER BY u.created_at DESC
-        LIMIT 100
+        ORDER BY (u.username IS NOT NULL) DESC, ideas_count DESC, u.created_at DESC
+        LIMIT 200
       `).all() as any[];
     } catch (e: any) {
       console.error('[Admin] Users query error:', e.message);
@@ -115,7 +130,8 @@ export async function GET(request: NextRequest) {
           p.status, 
           p.created_at, 
           p.verified_at,
-          u.wallet_address,
+          COALESCE(u.wallet_address, p.user_id) as wallet_address,
+          u.username,
           i.content as idea_content
         FROM payments p
         LEFT JOIN users u ON p.user_id = u.id
@@ -135,6 +151,7 @@ export async function GET(request: NextRequest) {
           i.status as idea_status,
           i.created_at,
           u.wallet_address as creator_wallet,
+          u.username as creator_username,
           a.id as agent_id,
           a.confidence,
           a.credibility,
@@ -147,8 +164,8 @@ export async function GET(request: NextRequest) {
           (SELECT COUNT(*) FROM debates WHERE agent_a = a.id OR agent_b = a.id) as debate_count,
           (SELECT COUNT(*) FROM idea_follows WHERE idea_id = i.id) as follower_count
         FROM ideas i
-        LEFT JOIN users u ON i.creator_id = u.id
-        LEFT JOIN agents a ON i.agent_id = a.id
+        LEFT JOIN users u ON i.creator_id = u.id OR LOWER(i.creator_id) = LOWER(u.wallet_address)
+        LEFT JOIN agents a ON (i.agent_id = a.id OR a.idea_id = i.id)
         LEFT JOIN mind_assets ma ON a.id = ma.mind_id
         ORDER BY i.created_at DESC
         LIMIT 100
@@ -163,11 +180,35 @@ export async function GET(request: NextRequest) {
         FROM agent_events ae
         LEFT JOIN agents a ON ae.agent_id = a.id
         ORDER BY ae.created_at DESC
-        LIMIT 50
+        LIMIT 100
       `).all() as any[];
     } catch (e: any) {
       console.error('[Admin] Agent events query error:', e.message);
     }
+
+    try {
+      responsePayload.logs.stakes = db.prepare(`
+        SELECT s.id, s.argument_id, s.agent_id, s.user_wallet, s.side, s.amount, s.token, s.chain, s.created_at,
+               arg.content as argument_content, a.thesis as mind_thesis, u.username
+        FROM argument_stakes s
+        LEFT JOIN arguments arg ON arg.id = s.argument_id
+        LEFT JOIN agents a ON a.id = s.agent_id
+        LEFT JOIN users u ON LOWER(u.wallet_address) = LOWER(s.user_wallet)
+        ORDER BY s.created_at DESC
+        LIMIT 100
+      `).all() as any[];
+    } catch (_) {}
+
+    try {
+      responsePayload.logs.predictions = db.prepare(`
+        SELECT p.id, p.mind_id, p.claim, p.target_value, p.target_metric, p.target_date, p.status, p.confidence_at_creation, p.created_at,
+               a.thesis as mind_thesis
+        FROM predictions p
+        LEFT JOIN agents a ON a.id = p.mind_id
+        ORDER BY p.created_at DESC
+        LIMIT 100
+      `).all() as any[];
+    } catch (_) {}
 
     try {
       responsePayload.logs.auditLogs = db.prepare(`

@@ -478,6 +478,12 @@ export function createAgentEvent(
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(id, agentId, eventType, content, source ?? null, confidenceBefore ?? null, confidenceAfter ?? null, now);
 
+  // Auto-sync agent movement to 0G storage snapshot
+  try {
+    const { triggerSync } = require('@/lib/storage/zerog-sync');
+    triggerSync(db);
+  } catch (_) {}
+
   return {
     id,
     agentId,
@@ -2012,6 +2018,12 @@ export function placeArgumentStake(params: {
       params.userWallet,
       now
     );
+  } catch (_) {}
+
+  // Sync to 0G storage backup
+  try {
+    const { triggerSync } = require('@/lib/storage/zerog-sync');
+    triggerSync(db);
   } catch (_) {}
 
   return {
