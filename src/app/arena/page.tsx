@@ -1,44 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/layout/AppShell';
 import Panel from '@/components/ui/Panel';
 import VoteBar from '@/components/ui/VoteBar';
 import { listRooms, subscribeRoom } from '@/api/minds';
 import type { ArenaRoom, ChatMessage } from '@/types/mind';
-import { MOCK_CHAT_POOL } from '@/mocks/minds';
 import { useWallet } from '@/hooks/useWallet';
-
-// Helper to seed realistic initial conversation for a room once
-function createInitialRoomMessages(roomName: string): ChatMessage[] {
-  return [
-    {
-      id: `init-1-${Date.now() - 36000}`,
-      user: 'nova.eth',
-      text: `Looking closely at ${roomName}'s conviction metrics. The spread is tightening.`,
-      timestamp: Date.now() - 36000,
-    },
-    {
-      id: `init-2-${Date.now() - 25000}`,
-      user: 'quant_kid',
-      text: `Citations from recent peer publications directly validate the primary thesis.`,
-      timestamp: Date.now() - 25000,
-    },
-    {
-      id: `init-3-${Date.now() - 14000}`,
-      user: roomName,
-      text: `Empirical feedback integrated. Multi-agent confidence verified at current parameters.`,
-      timestamp: Date.now() - 14000,
-    },
-    {
-      id: `init-4-${Date.now() - 4000}`,
-      user: 'oracle_jo',
-      text: `Tracking resolution date. Stakers are backing the optimistic curve.`,
-      timestamp: Date.now() - 4000,
-    },
-  ];
-}
 
 function ArenaContent() {
   const router = useRouter();
@@ -48,12 +17,16 @@ function ArenaContent() {
   const [selectedRoomIndex, setSelectedRoomIndex] = useState<number | null>(0);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMsg, setInputMsg] = useState('');
-  const [emojis, setEmojis] = useState({ fire: 12, laugh: 7, mindblown: 9 });
+  const [emojis, setEmojis] = useState({ fire: 0, laugh: 0, mindblown: 0 });
+  const [userReactions, setUserReactions] = useState<string[]>([]);
   const [pollVotes, setPollVotes] = useState<[number, number]>([63, 37]);
   const [hasVotedPoll, setHasVotedPoll] = useState(false);
+  const [loadingChat, setLoadingChat] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
+  // Load rooms
   useEffect(() => {
     async function load() {
       const data = await listRooms();
@@ -62,36 +35,46 @@ function ArenaContent() {
     load();
   }, []);
 
-  // Initialize room chat from persistent storage or seed
+  // Load room data: messages from DB, reactions, poll state
   useEffect(() => {
     if (selectedRoomIndex === null || rooms.length === 0) return;
 
     const currentRoom = rooms[selectedRoomIndex];
     const roomId = currentRoom?.id || `room-${selectedRoomIndex}`;
-    const storageKey = `mindcast_arena_chat_${roomId}`;
+
+    // 1. Load existing messages from the API (stored in DB)
+    setLoadingChat(true);
+    fetch(`/api/arena/chat?roomId=${roomId}&limit=40`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.messages && data.messages.length > 0) {
+          setMessages(data.messages);
+        } else {
+          setMessages([]);
+        }
+      })
+      .catch(() => setMessages([]))
+      .finally(() => setLoadingChat(false));
+
+    // 2. Load reaction counts and user's existing reactions
+    const walletQuery = address ? `&wallet=${address}` : '';
+    fetch(`/api/arena/reactions?roomId=${roomId}${walletQuery}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.counts) {
+          setEmojis(data.counts);
+        }
+        if (data.userReactions) {
+          setUserReactions(data.userReactions);
+        }
+      })
+      .catch(() => {
+        setEmojis({ fire: 0, laugh: 0, mindblown: 0 });
+        setUserReactions([]);
+      });
+
+    // 3. Load Poll State from localStorage (poll is per-session for now)
     const pollKey = `mindcast_arena_poll_${roomId}`;
-    const emojiKey = `mindcast_arena_emojis_${roomId}`;
-
-    // 1. Load Messages from localStorage
-    let savedMessages: ChatMessage[] = [];
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        savedMessages = JSON.parse(stored);
-      }
-    } catch (_) {}
-
-    if (savedMessages.length > 0) {
-      setMessages(savedMessages);
-    } else {
-      const initial = createInitialRoomMessages(currentRoom?.name || 'Mind 590A');
-      setMessages(initial);
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(initial));
-      } catch (_) {}
-    }
-
-    // 2. Load Poll State
     try {
       const storedPoll = localStorage.getItem(pollKey);
       if (storedPoll) {
@@ -101,40 +84,26 @@ function ArenaContent() {
       } else {
         const defaultVotes: [number, number] = [
           Math.floor(45 + (selectedRoomIndex * 7) % 35),
-          Math.floor(25 + (selectedRoomIndex * 5) % 25)
+          Math.floor(25 + (selectedRoomIndex * 5) % 25),
         ];
         setPollVotes(defaultVotes);
         setHasVotedPoll(false);
       }
     } catch (_) {}
 
-    // 3. Load Emojis
-    try {
-      const storedEmojis = localStorage.getItem(emojiKey);
-      if (storedEmojis) {
-        setEmojis(JSON.parse(storedEmojis));
-      } else {
-        setEmojis({ fire: 12 + selectedRoomIndex, laugh: 7, mindblown: 9 + selectedRoomIndex });
-      }
-    } catch (_) {}
-
-    // 4. Live Subscription — append incoming messages without resetting
+    // 4. Live subscription — real AI agent messages via 0G API
+    const roomTopic = currentRoom?.blurb || currentRoom?.name || '';
     const unsubscribe = subscribeRoom(roomId, (newMsg) => {
       setMessages((prev) => {
-        // Prevent duplicate IDs
         if (prev.some((m) => m.id === newMsg.id)) return prev;
-        const next = [...prev, newMsg].slice(-60); // keep last 60 messages
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(next));
-        } catch (_) {}
-        return next;
+        return [...prev, newMsg].slice(-60);
       });
-    });
+    }, roomTopic);
 
     return () => {
       unsubscribe();
     };
-  }, [selectedRoomIndex, rooms]);
+  }, [selectedRoomIndex, rooms, address]);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -143,52 +112,110 @@ function ArenaContent() {
     }
   }, [messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // Send user message — triggers real AI response
+  const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMsg.trim() || selectedRoomIndex === null) return;
+    if (!inputMsg.trim() || selectedRoomIndex === null || sendingMessage) return;
 
-    const roomId = rooms[selectedRoomIndex]?.id || `room-${selectedRoomIndex}`;
-    const storageKey = `mindcast_arena_chat_${roomId}`;
+    const currentRoom = rooms[selectedRoomIndex];
+    const roomId = currentRoom?.id || `room-${selectedRoomIndex}`;
 
-    const userDisplayName = isConnected && address 
+    const userDisplayName = isConnected && address
       ? `${address.slice(0, 6)}...${address.slice(-4)}`
       : 'You';
 
+    // Optimistically add user message
+    const tempId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const myMsg: ChatMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: tempId,
       user: userDisplayName,
       text: inputMsg.trim(),
       timestamp: Date.now(),
       mine: true,
     };
 
-    setMessages((prev) => {
-      const next = [...prev.slice(-59), myMsg];
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(next));
-      } catch (_) {}
-      return next;
-    });
-
+    setMessages((prev) => [...prev.slice(-59), myMsg]);
+    const messageText = inputMsg.trim();
     setInputMsg('');
-  };
+    setSendingMessage(true);
 
-  const handleEmojiClick = (key: 'fire' | 'laugh' | 'mindblown') => {
+    // Send to backend — which also triggers an AI response
+    try {
+      const res = await fetch('/api/arena/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId,
+          roomTopic: currentRoom?.blurb || currentRoom?.name || '',
+          userMessage: messageText,
+          userWallet: address || null,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.message) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === data.message.id)) return prev;
+            return [...prev, data.message].slice(-60);
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[Arena] Failed to send message:', err);
+    } finally {
+      setSendingMessage(false);
+    }
+  }, [inputMsg, selectedRoomIndex, rooms, isConnected, address, sendingMessage]);
+
+  // Emoji click — one per user per emoji per room (enforced server-side)
+  const handleEmojiClick = useCallback(async (key: 'fire' | 'laugh' | 'mindblown') => {
     if (selectedRoomIndex === null) return;
-    const roomId = rooms[selectedRoomIndex]?.id || `room-${selectedRoomIndex}`;
-    const emojiKey = `mindcast_arena_emojis_${roomId}`;
 
-    setEmojis((prev) => {
-      const updated = {
-        ...prev,
-        [key]: prev[key] + 1,
-      };
-      try {
-        localStorage.setItem(emojiKey, JSON.stringify(updated));
-      } catch (_) {}
-      return updated;
-    });
-  };
+    // Must be connected to react
+    if (!isConnected || !address) {
+      alert('Connect your wallet to react');
+      return;
+    }
+
+    // Already reacted client-side check
+    if (userReactions.includes(key)) {
+      return;
+    }
+
+    const roomId = rooms[selectedRoomIndex]?.id || `room-${selectedRoomIndex}`;
+
+    // Optimistic update
+    setEmojis((prev) => ({ ...prev, [key]: prev[key] + 1 }));
+    setUserReactions((prev) => [...prev, key]);
+
+    try {
+      const res = await fetch('/api/arena/reactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId,
+          emojiType: key,
+          userWallet: address,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.counts) {
+        setEmojis(data.counts);
+        setUserReactions(data.userReactions || []);
+      } else if (data.alreadyReacted) {
+        // Revert optimistic update
+        setEmojis((prev) => ({ ...prev, [key]: Math.max(0, prev[key] - 1) }));
+        setUserReactions((prev) => prev.filter((r) => r !== key));
+      }
+    } catch (err) {
+      // Revert on error
+      setEmojis((prev) => ({ ...prev, [key]: Math.max(0, prev[key] - 1) }));
+      setUserReactions((prev) => prev.filter((r) => r !== key));
+    }
+  }, [selectedRoomIndex, rooms, isConnected, address, userReactions]);
 
   const handleVotePoll = (choice: 0 | 1) => {
     if (hasVotedPoll || selectedRoomIndex === null) return;
@@ -206,24 +233,11 @@ function ArenaContent() {
     setHasVotedPoll(true);
   };
 
-  const handleResetChatHistory = () => {
-    if (selectedRoomIndex === null) return;
-    const currentRoom = rooms[selectedRoomIndex];
-    const roomId = currentRoom?.id || `room-${selectedRoomIndex}`;
-    const storageKey = `mindcast_arena_chat_${roomId}`;
-    const initial = createInitialRoomMessages(currentRoom?.name || 'Mind');
-    setMessages(initial);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(initial));
-    } catch (_) {}
-  };
-
   const selectedRoom = selectedRoomIndex !== null ? rooms[selectedRoomIndex] : null;
   const totalPollVotes = pollVotes[0] + pollVotes[1];
   const percentYes = totalPollVotes > 0 ? Math.round((pollVotes[0] / totalPollVotes) * 100) : 50;
   const percentNo = 100 - percentYes;
 
-  // Dynamic poll question based on selected room's mind
   const pollQuestion = selectedRoom
     ? `Will "${selectedRoom.name}" maintain high confidence through Q1 2027?`
     : 'Will this Mind maintain high confidence through Q1 2027?';
@@ -256,7 +270,7 @@ function ArenaContent() {
             title={`${selectedRoom.name} · live chat`}
             color={selectedRoom.color}
           >
-            {/* Header toolbar for room */}
+            {/* Header toolbar */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
               {selectedRoom.mindId ? (
                 <button
@@ -277,22 +291,12 @@ function ArenaContent() {
                 </button>
               ) : <div />}
 
-              <button
-                type="button"
-                onClick={handleResetChatHistory}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--mute)',
-                  fontSize: '11px',
-                  cursor: 'pointer',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                }}
-                title="Reset conversation history for this room"
-              >
-                ↻ Reset History
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '10px', color: 'var(--proven)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--proven)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                  Powered by 0G AI
+                </span>
+              </div>
             </div>
 
             <div
@@ -303,6 +307,16 @@ function ArenaContent() {
               role="log"
               style={{ maxHeight: '380px', overflowY: 'auto' }}
             >
+              {loadingChat && messages.length === 0 && (
+                <p style={{ color: 'var(--mute)', fontStyle: 'italic', textAlign: 'center' }}>
+                  Loading conversation...
+                </p>
+              )}
+              {!loadingChat && messages.length === 0 && (
+                <p style={{ color: 'var(--mute)', fontStyle: 'italic', textAlign: 'center' }}>
+                  Room is quiet. Say something to start the discussion!
+                </p>
+              )}
               {messages.map((m) => (
                 <p key={m.id} style={m.mine ? { fontWeight: 600 } : undefined}>
                   <b style={{ color: m.mine ? 'var(--accent)' : selectedRoom.color }}>
@@ -311,6 +325,11 @@ function ArenaContent() {
                   {m.text}
                 </p>
               ))}
+              {sendingMessage && (
+                <p style={{ color: 'var(--mute)', fontStyle: 'italic' }}>
+                  🤖 Agent is thinking...
+                </p>
+              )}
             </div>
 
             <form className="send" onSubmit={handleSendMessage}>
@@ -320,9 +339,10 @@ function ArenaContent() {
                 aria-label="Message"
                 value={inputMsg}
                 onChange={(e) => setInputMsg(e.target.value)}
+                disabled={sendingMessage}
               />
-              <button type="submit" className="pri">
-                Send
+              <button type="submit" className="pri" disabled={sendingMessage}>
+                {sendingMessage ? '...' : 'Send'}
               </button>
             </form>
 
@@ -331,6 +351,9 @@ function ArenaContent() {
                 type="button"
                 onClick={() => handleEmojiClick('fire')}
                 aria-label="React with fire"
+                disabled={userReactions.includes('fire')}
+                style={userReactions.includes('fire') ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                title={userReactions.includes('fire') ? 'Already reacted' : 'React with 🔥'}
               >
                 🔥 <i>{emojis.fire}</i>
               </button>
@@ -338,6 +361,9 @@ function ArenaContent() {
                 type="button"
                 onClick={() => handleEmojiClick('laugh')}
                 aria-label="React with laugh"
+                disabled={userReactions.includes('laugh')}
+                style={userReactions.includes('laugh') ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                title={userReactions.includes('laugh') ? 'Already reacted' : 'React with 😂'}
               >
                 😂 <i>{emojis.laugh}</i>
               </button>
@@ -345,6 +371,9 @@ function ArenaContent() {
                 type="button"
                 onClick={() => handleEmojiClick('mindblown')}
                 aria-label="React with mind blown"
+                disabled={userReactions.includes('mindblown')}
+                style={userReactions.includes('mindblown') ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                title={userReactions.includes('mindblown') ? 'Already reacted' : 'React with 🤯'}
               >
                 🤯 <i>{emojis.mindblown}</i>
               </button>

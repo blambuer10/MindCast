@@ -1,5 +1,5 @@
 import type { Mind, ArenaRoom, ChatMessage, PanelReaction, Status } from '@/types/mind';
-import { MOCK_MINDS, MOCK_ROOMS, MOCK_CHAT_POOL, generateDebates, generatePredictions } from '@/mocks/minds';
+import { MOCK_MINDS, MOCK_ROOMS, generateDebates, generatePredictions } from '@/mocks/minds';
 
 function mapTopicToNoosphere(topic?: string): string {
   if (!topic) return 'Artificial Intelligence';
@@ -220,21 +220,60 @@ export async function listRooms(): Promise<ArenaRoom[]> {
 }
 
 /**
- * Subscribes to an Arena room for live updates.
+ * Subscribes to an Arena room for live AI-generated updates.
+ * Uses real 0G API through /api/arena/chat endpoint.
  * Returns an unsubscribe callback.
  */
-export function subscribeRoom(roomId: string, onMessage: (msg: ChatMessage) => void): () => void {
-  const interval = setInterval(() => {
-    const randomItem = MOCK_CHAT_POOL[Math.floor(Math.random() * MOCK_CHAT_POOL.length)];
-    onMessage({
-      id: Math.random().toString(36).substring(2, 9),
-      user: randomItem[0],
-      text: randomItem[1],
-      timestamp: Date.now(),
-    });
-  }, 4500);
+export function subscribeRoom(roomId: string, onMessage: (msg: ChatMessage) => void, roomTopic?: string): () => void {
+  let active = true;
+
+  async function fetchAIMessage() {
+    if (!active) return;
+    try {
+      const res = await fetch('/api/arena/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomId, roomTopic: roomTopic || '' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.message && active) {
+          onMessage({
+            id: data.message.id,
+            user: data.message.user,
+            text: data.message.text,
+            timestamp: data.message.timestamp || Date.now(),
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[subscribeRoom] AI message fetch failed:', err);
+    }
+  }
+
+  // Initial delay before first message (3-5 seconds)
+  const initialDelay = 3000 + Math.random() * 2000;
+  const initialTimer = setTimeout(() => {
+    if (!active) return;
+    fetchAIMessage();
+    // Then continue at intervals (8-15 seconds between messages)
+    const interval = setInterval(() => {
+      if (!active) {
+        clearInterval(interval);
+        return;
+      }
+      fetchAIMessage();
+    }, 8000 + Math.random() * 7000);
+
+    // Store interval for cleanup
+    (subscribeRoom as any).__interval = interval;
+  }, initialDelay);
 
   return () => {
-    clearInterval(interval);
+    active = false;
+    clearTimeout(initialTimer);
+    if ((subscribeRoom as any).__interval) {
+      clearInterval((subscribeRoom as any).__interval);
+    }
   };
 }
