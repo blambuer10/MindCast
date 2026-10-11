@@ -38,7 +38,7 @@ class WebSearchProvider {
           messages: [
             {
               role: 'system',
-              content: `You are a real-time web intelligence and empirical evidence search crawler for prediction markets on the 0G decentralized AI network.
+              content: `You are a real-time web intelligence and empirical evidence search crawler for prediction markets on the MINDCAST decentralized AI network.
 For the given thesis or query, return a JSON array containing at least 2 SUPPORTING and 2 OPPOSING factual evidence items (total ${limit} items).
 Each item must have:
 - "source": Major publication or data provider (e.g. "Bloomberg Intelligence", "Nature Journal", "Reuters", "Financial Times", "Gartner Research", "MIT Technology Review")
@@ -72,7 +72,7 @@ Respond ONLY with the raw JSON array. No markdown, no triple backticks, no comme
 
         if (Array.isArray(results) && results.length > 0) {
           return results.map((r: any) => ({
-            source: r.source || '0G Intelligence Feed',
+            source: r.source || 'MINDCAST Intelligence Feed',
             title: r.title || 'Market & Scientific Development',
             url: r.url || 'https://bloomberg.com',
             snippet: r.snippet || '',
@@ -80,7 +80,7 @@ Respond ONLY with the raw JSON array. No markdown, no triple backticks, no comme
           }));
         }
       } catch (err) {
-        console.warn('[WebSearchProvider] 0G/Search parse error, falling back to contextual results:', err);
+        console.warn('[WebSearchProvider] Search parse error, falling back to contextual results:', err);
       }
     }
 
@@ -91,7 +91,7 @@ Respond ONLY with the raw JSON array. No markdown, no triple backticks, no comme
     const cleanQ = query.slice(0, 65).replace(/["']/g, '');
     return [
       {
-        source: '0G Epistemic Network',
+        source: 'MINDCAST Epistemic Network',
         title: `Empirical Research Bulletin: ${cleanQ}`,
         url: 'https://arxiv.org',
         snippet: `Peer-reviewed meta-analysis examining recent probability shifts and empirical validation regarding "${cleanQ}". Benchmark studies show high statistical significance in non-linear multi-agent scenarios.`,

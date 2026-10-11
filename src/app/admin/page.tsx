@@ -135,12 +135,12 @@ export default function AdminPage() {
 
   const triggerZeroGSync = async () => {
     setIsSyncing(true);
-    setSyncStatusMsg('Syncing to 0G Storage...');
+    setSyncStatusMsg('Syncing to MINDCAST Storage...');
     try {
       const res = await fetch('/api/sync/0g', { method: 'POST' });
       const json = await res.json();
       if (json.success) {
-        setSyncStatusMsg(`0G Root: ${json.zerogRootHash ? json.zerogRootHash.slice(0, 10) + '...' : 'Verified ✓'}`);
+        setSyncStatusMsg(`MINDCAST Root: ${json.zerogRootHash ? json.zerogRootHash.slice(0, 10) + '...' : 'Verified ✓'}`);
         setTimeout(() => setSyncStatusMsg(null), 5000);
       } else {
         setSyncStatusMsg('Sync error');
@@ -306,7 +306,7 @@ export default function AdminPage() {
         ) : null}
 
         {/* ========================================================================= */}
-        {/* TAB 1: NETWORKS (MAINNET & TESTNET + 0G AI)                               */}
+        {/* TAB 1: NETWORKS (MAINNET & TESTNET + MINDCAST AI)                         */}
         {/* ========================================================================= */}
         {activeTab === 'networks' && data && (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
@@ -419,12 +419,12 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* 0G DECENTRALIZED AI COMPUTE */}
+              {/* MINDCAST AI COMPUTE */}
               <div className="card" style={{ padding: 'var(--space-6)', border: '1px solid rgba(168, 85, 247, 0.3)', background: 'linear-gradient(180deg, rgba(168,85,247,0.03) 0%, rgba(0,0,0,0.2) 100%)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
                   <div>
                     <span style={{ fontSize: '10px', color: '#c084fc', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>Decentralized Inference</span>
-                    <h2 style={{ fontSize: 'var(--text-lg)', color: 'var(--parchment)', margin: 0, fontFamily: 'var(--font-display)' }}>0G Compute Network</h2>
+                    <h2 style={{ fontSize: 'var(--text-lg)', color: 'var(--parchment)', margin: 0, fontFamily: 'var(--font-display)' }}>MINDCAST Compute Network</h2>
                   </div>
                   <span className="badge" style={{ background: data.networks.ai.status === 'operational' ? 'rgba(74,222,128,0.15)' : 'rgba(239,68,68,0.15)', color: data.networks.ai.status === 'operational' ? 'var(--success)' : 'var(--error)' }}>
                     {data.networks.ai.status === 'operational' ? '● OPERATIONAL' : '● KEY MISSING'}
@@ -455,12 +455,12 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* 0G DECENTRALIZED STORAGE */}
+              {/* MINDCAST STORAGE */}
               <div className="card" style={{ padding: 'var(--space-6)', border: '1px solid rgba(74, 222, 128, 0.3)', background: 'linear-gradient(180deg, rgba(74,222,128,0.03) 0%, rgba(0,0,0,0.2) 100%)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
                   <div>
                     <span style={{ fontSize: '10px', color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>Decentralized Storage</span>
-                    <h2 style={{ fontSize: 'var(--text-lg)', color: 'var(--parchment)', margin: 0, fontFamily: 'var(--font-display)' }}>0G Storage Network</h2>
+                    <h2 style={{ fontSize: 'var(--text-lg)', color: 'var(--parchment)', margin: 0, fontFamily: 'var(--font-display)' }}>MINDCAST Storage Network</h2>
                   </div>
                   <span className="badge" style={{ background: 'rgba(74,222,128,0.15)', color: 'var(--success)' }}>
                     ● OPERATIONAL
@@ -470,7 +470,7 @@ export default function AdminPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', fontSize: 'var(--text-xs)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
                     <span style={{ color: 'var(--muted)' }}>Indexer Gateway:</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--parchment)' }}>0g.ai Turbo Indexer</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--parchment)' }}>MINDCAST Turbo Indexer</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
                     <span style={{ color: 'var(--muted)' }}>Latest Merkle Root:</span>
@@ -487,7 +487,7 @@ export default function AdminPage() {
                       className="btn btn-secondary"
                       style={{ fontSize: '11px', padding: '6px 12px', background: 'rgba(74,222,128,0.15)', color: 'var(--success)', border: '1px solid rgba(74,222,128,0.3)', cursor: 'pointer' }}
                     >
-                      {isSyncing ? '⏳ Syncing...' : '⚡ Trigger 0G Snapshot'}
+                      {isSyncing ? '⏳ Syncing...' : '⚡ Trigger Snapshot'}
                     </button>
                     {syncStatusMsg && <span style={{ fontSize: '11px', color: 'var(--signal)' }}>{syncStatusMsg}</span>}
                   </div>
@@ -816,7 +816,7 @@ export default function AdminPage() {
                               {e.content}
                             </td>
                             <td style={{ padding: 'var(--space-3) var(--space-4)', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-                              {e.source || '0G Engine'}
+                              {e.source || 'MINDCAST Engine'}
                             </td>
                             <td style={{ padding: 'var(--space-3) var(--space-4)', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                               {new Date(e.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}

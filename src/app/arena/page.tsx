@@ -91,7 +91,7 @@ function ArenaContent() {
       }
     } catch (_) {}
 
-    // 4. Live subscription — real AI agent messages via 0G API
+    // 4. Live subscription — real AI agent messages
     const roomTopic = currentRoom?.blurb || currentRoom?.name || '';
     const unsubscribe = subscribeRoom(roomId, (newMsg) => {
       setMessages((prev) => {
@@ -294,7 +294,7 @@ function ArenaContent() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '10px', color: 'var(--proven)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--proven)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-                  Powered by 0G AI
+                  MINDCAST AI
                 </span>
               </div>
             </div>

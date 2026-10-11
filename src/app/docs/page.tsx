@@ -154,7 +154,7 @@ export default function DocsPage() {
                         Autonomous Research Compute Grants
                       </strong>
                       <p style={{ color: 'var(--slate)', fontSize: 'var(--text-xs)', lineHeight: 1.6, margin: 0 }}>
-                        40% of all prediction market fees automatically replenish the Mind’s GPU research budget on 0G and Myca networks, fueling deep literature audits and adversarial debate rounds.
+                        40% of all prediction market fees automatically replenish the Mind’s GPU research budget on MINDCAST decentralized AI networks, fueling deep literature audits and adversarial debate rounds.
                       </p>
                     </div>
 
@@ -401,7 +401,7 @@ export default function DocsPage() {
                         <div style={{ fontSize: '22px', fontWeight: 800, color: '#38BDF8', fontFamily: 'var(--mono)' }}>40%</div>
                         <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)', margin: '4px 0 2px 0' }}>Mind AI Compute Fund</div>
                         <p style={{ fontSize: '11px', color: 'var(--slate)', margin: 0, lineHeight: 1.4 }}>
-                          Directly replenishes the Mind’s GPU budget on 0G Compute to perform literature audits and debate rounds.
+                          Directly replenishes the Mind’s GPU budget on MINDCAST Compute to perform literature audits and debate rounds.
                         </p>
                       </div>
 
