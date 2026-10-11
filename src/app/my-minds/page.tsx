@@ -45,7 +45,7 @@ function MindCard({ mind }: { mind: IdeaWithMind }) {
             color: statusColor,
             border: `1px solid ${statusColor}40`,
           }}>
-            {status}
+            {rawStatus}
           </span>
           <span style={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 700, color: confidence > 70 ? 'var(--cyan)' : confidence > 45 ? '#F59E0B' : '#F43F5E' }}>
             {confidence}%
@@ -77,19 +77,53 @@ function MyMindsContent() {
     if (!address) return;
     setLoading(true);
     try {
-      const [createdRes, followedRes] = await Promise.all([
-        fetch(`/api/ideas?tab=my-minds&walletAddress=${address}&limit=50`),
-        fetch(`/api/ideas?tab=following&walletAddress=${address}&limit=50`),
-      ]);
+      // 1. Fetch from server API
+      let remoteCreated: IdeaWithMind[] = [];
+      let remoteFollowed: IdeaWithMind[] = [];
 
-      if (createdRes.ok) {
-        const cData = await createdRes.json();
-        setCreatedMinds(cData.ideas || []);
+      try {
+        const [createdRes, followedRes] = await Promise.all([
+          fetch(`/api/ideas?tab=my-minds&walletAddress=${address}&limit=50`),
+          fetch(`/api/ideas?tab=following&walletAddress=${address}&limit=50`),
+        ]);
+
+        if (createdRes.ok) {
+          const cData = await createdRes.json();
+          remoteCreated = cData.ideas || [];
+        }
+        if (followedRes.ok) {
+          const fData = await followedRes.json();
+          remoteFollowed = fData.ideas || [];
+        }
+      } catch (netErr) {
+        console.warn('Network fetch for user minds:', netErr);
       }
-      if (followedRes.ok) {
-        const fData = await followedRes.json();
-        setFollowedMinds(fData.ideas || []);
+
+      // 2. Fetch locally persisted minds created by this wallet
+      let localCreated: IdeaWithMind[] = [];
+      try {
+        const stored = localStorage.getItem('mindcast_created_minds');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            // Filter minds belonging to this address or without address
+            localCreated = parsed.filter((m: any) => 
+              !m.creatorWallet || m.creatorWallet.toLowerCase() === address.toLowerCase()
+            );
+          }
+        }
+      } catch (_) {}
+
+      // Merge remote & local created minds (deduplicate by id)
+      const mergedCreated = [...remoteCreated];
+      for (const loc of localCreated) {
+        if (!mergedCreated.some((m) => m.id === loc.id)) {
+          mergedCreated.unshift(loc);
+        }
       }
+
+      setCreatedMinds(mergedCreated);
+      setFollowedMinds(remoteFollowed);
     } catch (err) {
       console.error('Failed to load user minds:', err);
     } finally {

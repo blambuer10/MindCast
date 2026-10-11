@@ -163,6 +163,38 @@ export default function CreateMindWorkflow({ onClose, onSuccess, initialContent 
       setCreatedAgentId(verData.agentId);
       setStep(4);
 
+      // Persist created mind locally so it immediately shows up in "My Minds"
+      try {
+        const stored = localStorage.getItem('mindcast_created_minds');
+        const list = stored ? JSON.parse(stored) : [];
+        const newMindItem = {
+          id: prepData.ideaId,
+          creatorId: activeAddress,
+          creatorWallet: activeAddress,
+          content: content.trim(),
+          tokenName: tokenName.trim() || `Mind ${prepData.ideaId.slice(0, 4)}`,
+          tokenTicker: tokenTicker.trim().toUpperCase() || 'MIND',
+          status: 'PUBLISHED',
+          createdAt: new Date().toISOString(),
+          publishedAt: new Date().toISOString(),
+          agent: {
+            id: verData.agentId || `MIND-${prepData.ideaId.slice(0, 4)}`,
+            thesis: content.trim(),
+            confidence: 65,
+            lifecycleStatus: 'INCUBATING',
+            credibility: 50,
+            estimatedValue: 1000,
+          },
+          evidenceCount: 1,
+          argumentCount: 0,
+          followerCount: 0,
+        };
+        if (!list.some((m: any) => m.id === prepData.ideaId)) {
+          list.unshift(newMindItem);
+          localStorage.setItem('mindcast_created_minds', JSON.stringify(list));
+        }
+      } catch (_) {}
+
       // Track analytics
       try {
         await fetch('/api/analytics/track', {

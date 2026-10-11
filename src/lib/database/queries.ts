@@ -228,19 +228,23 @@ export function getIdeasFeed(filters: FeedFilters): IdeaWithMind[] {
   const db = getDb();
   const offset = (filters.page - 1) * filters.limit;
 
-  const conditions: string[] = ["i.status = 'PUBLISHED'", "a.id IS NOT NULL"];
+  const conditions: string[] = [];
   const params: any[] = [];
 
-  if (filters.tab === 'following' && filters.walletAddress) {
+  if (filters.tab === 'my-minds' && filters.walletAddress) {
+    conditions.push(`LOWER(u.wallet_address) = LOWER(?)`);
+    params.push(filters.walletAddress);
+  } else if (filters.tab === 'following' && filters.walletAddress) {
+    conditions.push("i.status = 'PUBLISHED'");
     conditions.push(`EXISTS (
       SELECT 1 FROM idea_follows f 
       JOIN users u_f ON u_f.id = f.user_id 
       WHERE f.idea_id = i.id AND LOWER(u_f.wallet_address) = LOWER(?)
     )`);
     params.push(filters.walletAddress);
-  } else if (filters.tab === 'my-minds' && filters.walletAddress) {
-    conditions.push(`LOWER(u.wallet_address) = LOWER(?)`);
-    params.push(filters.walletAddress);
+  } else {
+    conditions.push("i.status = 'PUBLISHED'");
+    conditions.push("a.id IS NOT NULL");
   }
 
   if (filters.topic) {
@@ -284,7 +288,7 @@ export function getIdeasFeed(filters: FeedFilters): IdeaWithMind[] {
     ) DESC, COALESCE(a.estimated_value, 0) DESC`;
   } else {
     // default recent
-    orderBy = 'i.published_at DESC';
+    orderBy = 'COALESCE(i.published_at, i.created_at) DESC';
   }
 
   const sql = `
@@ -312,7 +316,7 @@ export function getIdeasFeed(filters: FeedFilters): IdeaWithMind[] {
       (SELECT ae.created_at FROM agent_events ae WHERE ae.agent_id = a.id ORDER BY ae.created_at DESC LIMIT 1) as latest_event_created_at,
       (SELECT ae.event_type FROM agent_events ae WHERE ae.agent_id = a.id ORDER BY ae.created_at DESC LIMIT 1) as latest_event_type
     FROM ideas i
-    INNER JOIN agents a ON a.idea_id = i.id
+    LEFT JOIN agents a ON (a.idea_id = i.id OR a.id = i.agent_id)
     LEFT JOIN users u ON u.id = i.creator_id
     WHERE ${conditions.join(' AND ')}
     ORDER BY ${orderBy}
