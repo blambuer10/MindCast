@@ -56,6 +56,34 @@
         "USDC": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
         "USDG": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"
       }
+    },
+    "101": {
+      "name": "Solana Mainnet",
+      "chainId": 101,
+      "nativeCurrency": {
+        "name": "SOL",
+        "symbol": "SOL",
+        "decimals": 9
+      },
+      "rpcUrls": ["https://api.mainnet-beta.solana.com"],
+      "blockExplorerUrls": ["https://solscan.io"],
+      "tokens": {
+        "USDC": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+      }
+    },
+    "103": {
+      "name": "Solana Devnet",
+      "chainId": 103,
+      "nativeCurrency": {
+        "name": "SOL",
+        "symbol": "SOL",
+        "decimals": 9
+      },
+      "rpcUrls": ["https://api.devnet.solana.com"],
+      "blockExplorerUrls": ["https://solscan.io?cluster=devnet"],
+      "tokens": {
+        "USDC": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
+      }
     }
   }
 }

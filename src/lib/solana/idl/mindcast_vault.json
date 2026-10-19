@@ -1,0 +1,127 @@
+{
+  "version": "0.1.0",
+  "name": "mindcast_vault",
+  "instructions": [
+    {
+      "name": "createMarket",
+      "accounts": [
+        { "name": "market", "isMut": true, "isSigner": false },
+        { "name": "vaultTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "usdcMint", "isMut": false, "isSigner": false },
+        { "name": "pythPriceFeed", "isMut": false, "isSigner": false },
+        { "name": "authority", "isMut": true, "isSigner": true },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false },
+        { "name": "rent", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "marketId", "type": "string" },
+        { "name": "mindAName", "type": "string" },
+        { "name": "mindBName", "type": "string" },
+        { "name": "claim", "type": "string" },
+        { "name": "targetPrice", "type": "i64" },
+        { "name": "targetExpo", "type": "i32" },
+        { "name": "endTimestamp", "type": "i64" },
+        { "name": "isBullTargetHigher", "type": "bool" }
+      ]
+    },
+    {
+      "name": "placeStake",
+      "accounts": [
+        { "name": "market", "isMut": true, "isSigner": false },
+        { "name": "userPosition", "isMut": true, "isSigner": false },
+        { "name": "vaultTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "userTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "user", "isMut": true, "isSigner": true },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "side", "type": { "defined": "StakeSide" } },
+        { "name": "amount", "type": "u64" }
+      ]
+    },
+    {
+      "name": "resolveMarketWithPyth",
+      "accounts": [
+        { "name": "market", "isMut": true, "isSigner": false },
+        { "name": "pythPriceFeed", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "claimPayout",
+      "accounts": [
+        { "name": "market", "isMut": false, "isSigner": false },
+        { "name": "userPosition", "isMut": true, "isSigner": false },
+        { "name": "vaultTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "userTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "user", "isMut": false, "isSigner": true },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "MarketAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "authority", "type": "publicKey" },
+          { "name": "marketId", "type": "string" },
+          { "name": "mindAName", "type": "string" },
+          { "name": "mindBName", "type": "string" },
+          { "name": "claim", "type": "string" },
+          { "name": "pythFeed", "type": "publicKey" },
+          { "name": "targetPrice", "type": "i64" },
+          { "name": "targetExpo", "type": "i32" },
+          { "name": "endTimestamp", "type": "i64" },
+          { "name": "isBullTargetHigher", "type": "bool" },
+          { "name": "totalBullStake", "type": "u64" },
+          { "name": "totalBearStake", "type": "u64" },
+          { "name": "status", "type": { "defined": "MarketStatus" } },
+          { "name": "resolvedPrice", "type": "i64" },
+          { "name": "vaultBump", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "PositionAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "user", "type": "publicKey" },
+          { "name": "market", "type": "publicKey" },
+          { "name": "side", "type": { "defined": "StakeSide" } },
+          { "name": "amount", "type": "u64" },
+          { "name": "claimed", "type": "bool" }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "MarketStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Open" },
+          { "name": "BullWon" },
+          { "name": "BearWon" },
+          { "name": "Cancelled" }
+        ]
+      }
+    },
+    {
+      "name": "StakeSide",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Bull" },
+          { "name": "Bear" }
+        ]
+      }
+    }
+  ]
+}
